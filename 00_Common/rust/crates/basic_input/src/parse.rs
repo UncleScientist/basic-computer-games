@@ -1,12 +1,10 @@
-fn parse<B: AsRef<str>>(buffer: B) -> Vec<String> {
+pub(crate) fn parse<B: AsRef<str>>(buffer: B) -> Vec<String> {
     let mut result = Vec::new();
-    let mut iter = buffer.as_ref().chars();
     let mut in_quote = false;
     let mut need_comma = false;
 
-    // for ch in iter {
     let mut current = String::new();
-    while let Some(ch) = iter.next() {
+    for ch in buffer.as_ref().chars() {
         match (ch, in_quote) {
             (',', false) => {
                 result.push(current.trim().to_string());

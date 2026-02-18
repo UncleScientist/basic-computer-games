@@ -1,10 +1,12 @@
+pub mod input;
 mod parse;
+
+pub use input::*;
 
 /*
  * TODO:
 
 use std::io::{BufRead, Write};
-use std::str::FromStr;
 
 pub fn input<F: FromStr, P: AsRef<str>>(prompt: P) -> F {
     loop {
