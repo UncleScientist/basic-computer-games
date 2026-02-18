@@ -9,6 +9,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
+name = "basic_input"
+version = "0.1.0"
+
+[[package]]
 name = "bitflags"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -70,6 +74,7 @@ dependencies = [
 name = "gunner"
 version = "0.1.0"
 dependencies = [
+ "basic_input",
  "rand",
 ]
 

@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 rand = "0.10.0"
+basic_input = { path = "../../00_Common/rust/crates/basic_input" }

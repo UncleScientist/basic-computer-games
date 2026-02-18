@@ -74,7 +74,7 @@ impl GunnerGame {
         }
 
         println!("\n");
-        get_input("Try again (Y or N)")
+        basic_input::input("Try again (Y or N)")
     }
 
     fn handle_target(&mut self) -> bool {
@@ -87,7 +87,7 @@ impl GunnerGame {
         // but then report that they've been destroyed.
         for shots_fired in 1..=6 {
             let elevation = loop {
-                let elevation: f32 = get_input("Elevation");
+                let elevation: f32 = basic_input::input("Elevation");
 
                 // Let the player know how well they did.
                 if elevation < 1.0 {
@@ -139,23 +139,5 @@ impl FromStr for PlayAgain {
         } else {
             Ok(Self::No)
         }
-    }
-}
-
-fn get_input<R: FromStr, S: AsRef<str>>(prompt: S) -> R {
-    loop {
-        print!("{}? ", prompt.as_ref());
-        let mut stdout = io::stdout().lock();
-        let _ = stdout.flush();
-
-        let mut buffer = String::new();
-        let stdin = std::io::stdin();
-        let mut handle = stdin.lock();
-        let _ = handle.read_line(&mut buffer);
-
-        if let Ok(result) = buffer.trim().to_string().parse::<R>() {
-            return result;
-        }
-        println!("?Re-enter");
     }
 }
