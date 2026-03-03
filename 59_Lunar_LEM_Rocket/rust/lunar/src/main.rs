@@ -13,15 +13,20 @@ fn main() {
     println!("Xerox) so you have to land the capsule manually.\n");
     println!("Set burn rate of retro rockets to any value between");
     println!("0 (free fall) and 200 (maximum burn) pounds per second.");
-    println!("Set new burn rate every 10 seconds.\n");
-    println!("Capsule weight 32,500 LBS; Fuel weight 16,000 LBS.");
-    println!("\n\n\nGood luck");
 
-    let mut lunar = LunarGame::new();
+    loop {
+        println!("Set new burn rate every 10 seconds.\n");
+        println!("Capsule weight 32,500 LBS; Fuel weight 16,000 LBS.");
+        println!("\n\n\nGood luck");
 
-    lunar.play();
+        let mut lunar = LunarGame::new();
+
+        lunar.play();
+        println!("\n\n\nTry again??");
+    }
 }
 
+#[derive(Debug)]
 struct LunarGame {
     seconds: f32,  // "L" variable in basic
     distance: f32, // "A" variable, distance in miles
@@ -31,9 +36,9 @@ struct LunarGame {
 }
 
 impl LunarGame {
-    const G_VAR: f32 = 0.001;
-    const N_VAR: f32 = 16_500.0;
-    const Z_VAR: f32 = 1.8;
+    const GRAVITY: f32 = 0.001;
+    const CAPSULE_WEIGHT: f32 = 16_500.0;
+    const EXHAUST_VELOCITY: f32 = 1.8;
 
     fn new() -> Self {
         Self {
@@ -46,7 +51,6 @@ impl LunarGame {
     }
 
     fn play(&mut self) {
-        let mut svar = 0.0;
         println!(
             "{:<9} {:<8} {:<10} {:<8} BURN RATE",
             "SEC", "MI + FT", "MPH", "LB_FUEL"
@@ -59,14 +63,14 @@ impl LunarGame {
 
             'time_loop: while self.time >= 0.001 {
                 // Line 160: out-of-fuel check
-                if self.mass - Self::N_VAR < 0.001 {
+                if self.mass - Self::CAPSULE_WEIGHT < 0.001 {
                     break;
                 }
 
-                svar = self.time;
+                let mut svar = self.time;
 
-                if self.mass < Self::N_VAR + svar * burn_rate {
-                    svar = (self.mass - Self::N_VAR) / burn_rate;
+                if self.mass < Self::CAPSULE_WEIGHT + svar * burn_rate {
+                    svar = (self.mass - Self::CAPSULE_WEIGHT) / burn_rate;
                 }
 
                 // Line 200: get new dist + velocity, and check if we hit the moon
@@ -86,11 +90,14 @@ impl LunarGame {
                 let mut check_velocity = new_velocity;
                 while check_velocity < 0.0 {
                     // Line 370: update velocity & time
-                    let vnext = (1.0 - self.mass * Self::G_VAR / (Self::Z_VAR * burn_rate)) / 2.0;
+                    let vnext = (1.0
+                        - self.mass * Self::GRAVITY / (Self::EXHAUST_VELOCITY * burn_rate))
+                        / 2.0;
                     svar = self.mass * self.velocity
-                        / (Self::Z_VAR
+                        / (Self::EXHAUST_VELOCITY
                             * burn_rate
-                            * (vnext + (vnext * vnext + self.velocity / Self::Z_VAR).sqrt()))
+                            * (vnext
+                                + (vnext * vnext + self.velocity / Self::EXHAUST_VELOCITY).sqrt()))
                         + 0.05;
                     let (new_velocity, new_distance) = self.calc_burn(svar, burn_rate);
 
@@ -116,14 +123,20 @@ impl LunarGame {
                 self.update(svar, burn_rate, new_distance, new_velocity);
             }
 
-            if self.mass - Self::N_VAR < 0.001 {
+            if self.mass - Self::CAPSULE_WEIGHT < 0.001 {
+                // Line 240: finish landing without fuel
                 println!("Fuel out at {} seconds.", self.seconds);
-                self.velocity += Self::G_VAR * svar;
-                self.seconds += svar;
+
+                let time_to_moon_landing: f32 = (-self.velocity
+                    + (self.velocity * self.velocity + 2.0 * self.distance * Self::GRAVITY).sqrt())
+                    / Self::GRAVITY;
+                self.velocity += Self::GRAVITY * time_to_moon_landing;
+                self.seconds += time_to_moon_landing;
                 break;
             }
         }
 
+        // Lines 250-320: Print results of this attempt
         let landing_velocity = 3600.0 * self.velocity;
         println!(
             "On moon at {} seconds - Impact velocity {} mph",
@@ -137,7 +150,7 @@ impl LunarGame {
             println!("Sorry there were no survivors. You blew it!");
             println!(
                 "In fact, you blasted a new lunar crater {} feet deep!",
-                landing_velocity * 0.227
+                landing_velocity * 0.277
             );
         } else {
             println!("Craft damage... you're stranded here until a rescue");
@@ -150,11 +163,15 @@ impl LunarGame {
         let q = svar * burn_rate / self.mass;
 
         let j = self.velocity
-            + Self::G_VAR * svar
-            + Self::Z_VAR
-                * (-q - q * q - q.powf(3.0) / 3.0 - q.powf(4.0) / 4.0 - q.powf(5.0) / 5.0);
-        let i = self.distance - Self::G_VAR * svar * svar / 2.0 - self.velocity * svar
-            + Self::Z_VAR
+            + Self::GRAVITY * svar
+            + Self::EXHAUST_VELOCITY
+                * (-q
+                    - ((q * q) / 2.0)
+                    - q.powf(3.0) / 3.0
+                    - q.powf(4.0) / 4.0
+                    - q.powf(5.0) / 5.0);
+        let i = self.distance - Self::GRAVITY * svar * svar / 2.0 - self.velocity * svar
+            + Self::EXHAUST_VELOCITY
                 * svar
                 * (q / 2.0
                     + q.powf(2.0) / 6.0
@@ -177,8 +194,10 @@ impl LunarGame {
     fn reached_moon(&mut self, mut svar: f32, burn_rate: f32) {
         while svar > 0.005 {
             let delta = self.velocity
-                * (self.velocity * self.velocity
-                    + 2.0 * self.distance * (Self::G_VAR - Self::Z_VAR * burn_rate / self.mass))
+                + (self.velocity * self.velocity
+                    + 2.0
+                        * self.distance
+                        * (Self::GRAVITY - Self::EXHAUST_VELOCITY * burn_rate / self.mass))
                     .sqrt();
             svar = 2.0 * self.distance / delta;
             let (new_distance, new_velocity) = self.calc_burn(svar, burn_rate);
@@ -194,7 +213,7 @@ impl LunarGame {
             self.distance.floor(),
             (5280.0 * (self.distance - self.distance.floor())).floor(),
             3600.0 * self.velocity,
-            self.mass - Self::N_VAR
+            self.mass - Self::CAPSULE_WEIGHT
         )
     }
 }
