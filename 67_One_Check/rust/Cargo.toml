@@ -1,6 +1,7 @@
-[package]
-name = "one_check"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = [ "game_logic", "text-ui", "gui" ]
+default-members = [ "text-ui" ]
 
-[dependencies]
+[workspace.dependencies]
+one_check = { path = "game_logic" }

@@ -1,5 +1,6 @@
-use std::fmt::Display;
 use std::io::{BufRead, Write};
+
+use one_check::Board;
 
 fn main() {
     println!("{:>30}One Check", "");
@@ -65,89 +66,6 @@ fn main() {
 
         // Lines 250-290
         board.make_move(from, to);
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-enum Piece {
-    Empty,
-    Occupied,
-}
-
-impl Display for Piece {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Piece::Empty => " 0",
-                Piece::Occupied => " 1",
-            }
-        )
-    }
-}
-
-#[derive(Debug)]
-struct Board {
-    grid: [Piece; 64],
-    moves: usize,
-}
-
-impl Board {
-    fn new() -> Self {
-        // Lines 80-64
-        let mut grid = [Piece::Occupied; 64];
-
-        // Line 86-94
-        for j in (18..=42).step_by(8) {
-            for i in grid.iter_mut().skip(j).take(4) {
-                *i = Piece::Empty;
-            }
-        }
-
-        Self { grid, moves: 0 }
-    }
-
-    fn legal_move(&self, from: usize, to: usize) -> bool {
-        if from > 64 || !(1..=64).contains(&to) {
-            return false;
-        }
-
-        // Lines 120-150
-        let f1 = (from - 1) / 8;
-        let f2 = from - 8 * f1;
-        let t1 = (to - 1) / 8;
-        let t2 = to - 8 * t1;
-
-        // Lines 160-220
-        !(f1 > 7
-            || t1 > 7
-            || f2 > 8
-            || t2 > 8
-            || f1.abs_diff(t1) != 2
-            || f2.abs_diff(t2) != 2
-            || self.grid[from - 1] == Piece::Empty
-            || self.grid[to - 1] == Piece::Occupied)
-    }
-
-    fn make_move(&mut self, from: usize, to: usize) {
-        self.grid[to - 1] = Piece::Occupied;
-        self.grid[from - 1] = Piece::Empty;
-        self.grid[(from + to) / 2 - 1] = Piece::Empty;
-        self.moves += 1;
-    }
-}
-
-impl Display for Board {
-    // Lines 310-410
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for j in (0..=56).step_by(8) {
-            for i in j..=j + 7 {
-                write!(f, "{}", self.grid[i])?;
-            }
-            writeln!(f)?;
-        }
-        Ok(())
     }
 }
 
