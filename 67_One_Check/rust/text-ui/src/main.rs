@@ -6,7 +6,7 @@ fn main() {
     println!("{:>30}One Check", "");
     println!("{:>15}Creative Computing  Morristown, New Jersey\n\n\n", "");
 
-    println!("Solitar Checker Puzzle by David Ahl\n");
+    println!("Solitare Checker Puzzle by David Ahl\n");
 
     println!("48 checkers are placed on the 2 outside spaces of a");
     println!("standard 64-square checkerboard. The object is to");

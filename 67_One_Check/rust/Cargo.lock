@@ -111,6 +111,7 @@ name = "gui"
 version = "0.1.0"
 dependencies = [
  "macroquad",
+ "one_check",
 ]
 
 [[package]]

@@ -40,6 +40,14 @@ impl Board {
         Self { grid, moves: 0 }
     }
 
+    pub fn is_occupied(&self, pos: usize) -> bool {
+        self.grid[pos - 1] == Piece::Occupied
+    }
+
+    pub fn get_board(&self) -> &[Piece; 64] {
+        &self.grid
+    }
+
     pub fn legal_move(&self, from: usize, to: usize) -> bool {
         if from > 64 || !(1..=64).contains(&to) {
             return false;
@@ -58,6 +66,7 @@ impl Board {
             || t2 > 8
             || f1.abs_diff(t1) != 2
             || f2.abs_diff(t2) != 2
+            || self.grid[(from + to) / 2 - 1] == Piece::Empty
             || self.grid[from - 1] == Piece::Empty
             || self.grid[to - 1] == Piece::Occupied)
     }
@@ -67,6 +76,16 @@ impl Board {
         self.grid[from - 1] = Piece::Empty;
         self.grid[(from + to) / 2 - 1] = Piece::Empty;
         self.moves += 1;
+    }
+
+    pub fn get_moves(&self) -> usize {
+        self.moves
+    }
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
