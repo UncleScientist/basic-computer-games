@@ -21,8 +21,7 @@ async fn main() {
         clear_background(BLACK);
         match display_state {
             DisplayState::Instructions => {
-                draw_instructions();
-                if is_mouse_button_pressed(MouseButton::Left) {
+                if draw_instructions() {
                     display_state = DisplayState::GetFromSquare;
                 }
             }
@@ -197,7 +196,7 @@ fn position_to_square(loc: &(f32, f32)) -> Option<usize> {
     Some((x + y * 8) as usize)
 }
 
-fn draw_instructions() {
+fn draw_instructions() -> bool {
     let w = screen_width();
 
     let mut ypos = 20.0;
@@ -229,7 +228,8 @@ fn draw_instructions() {
 
     ypos += LINE_HEIGHT * 2.0;
 
-    draw_rectangle_lines(w / 2. - 100., ypos, 200., LINE_HEIGHT * 3., 2., BLUE);
+    let (x, y, width, height) = (w / 2.0 - 100.0, ypos, 200.0, LINE_HEIGHT * 3.);
+    draw_rectangle_lines(x, y, width, height, 2., BLUE);
     let center = get_text_center("PLAY!", Option::None, 48, 1., 0.);
     draw_text(
         "PLAY!",
@@ -238,6 +238,13 @@ fn draw_instructions() {
         48.,
         WHITE,
     );
+
+    if is_mouse_button_pressed(MouseButton::Left) {
+        let loc = mouse_position();
+        loc.0 >= x && loc.0 <= (x + width) && loc.1 >= y && loc.1 <= (y + height)
+    } else {
+        false
+    }
 }
 
 fn center_text<S: AsRef<str>>(text: S, ypos: f32, width: f32) {
