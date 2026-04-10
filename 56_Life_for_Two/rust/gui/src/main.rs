@@ -7,7 +7,9 @@ enum GameState {
     Player1Setup,
     Player2Setup,
     Player1Move,
+    FlashPlayer1,
     Player2Move,
+    WaitForClick,
     End,
 }
 
@@ -16,6 +18,10 @@ async fn main() {
     let mut board = Board::new();
     let mut state = GameState::Player1Setup;
     let mut setup_count = 3;
+    let mut player1_move = (0, 0);
+    let mut flash_state = false;
+    let mut flash_frames = 0;
+    let mut flash_count = 3;
 
     loop {
         clear_background(BLACK);
@@ -24,13 +30,7 @@ async fn main() {
             GameState::Player1Setup => {
                 draw_board(&board, Piece::Empty);
 
-                let h = screen_height();
-                let text_size = measure_text("Player 1 - select 3 squares", None, 24, 1.0);
-                center_text(
-                    "Player 1 - select 3 squares",
-                    h - text_size.height,
-                    screen_width(),
-                );
+                bottom_message("Player 1 - Select 3 Squares");
 
                 if is_mouse_button_pressed(MouseButton::Left) {
                     let loc = mouse_position();
@@ -49,13 +49,7 @@ async fn main() {
             GameState::Player2Setup => {
                 draw_board(&board, Piece::Player1);
 
-                let h = screen_height();
-                let text_size = measure_text("Player 2 - select 3 squares", None, 24, 1.0);
-                center_text(
-                    "Player 2 - select 3 squares",
-                    h - text_size.height,
-                    screen_width(),
-                );
+                bottom_message("Player 2 - Select 3 Squares");
 
                 if is_mouse_button_pressed(MouseButton::Left) {
                     let loc = mouse_position();
@@ -73,11 +67,60 @@ async fn main() {
             }
             GameState::Player1Move => {
                 draw_board(&board, Piece::Empty);
+                bottom_message("Player 1 - Select Empty Square");
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    let loc = mouse_position();
+                    if let Some(square) = position_to_square(&loc) {
+                        if board.is_empty(square.0 + 1, square.1 + 1) {
+                            player1_move = square;
+                            state = GameState::FlashPlayer1;
+                        }
+                    }
+                }
+            }
+            GameState::FlashPlayer1 => {
+                if flash_count == 0 {
+                    state = GameState::Player2Move;
+                } else if flash_state {
+                    if flash_frames == 0 {
+                        flash_state = false;
+                        flash_count -= 1;
+                        flash_frames = 40;
+                        board.clear_piece(player1_move.0 + 1, player1_move.1 + 1);
+                    } else {
+                        flash_frames -= 1;
+                    }
+                } else {
+                    if flash_frames == 0 {
+                        flash_state = true;
+                        flash_frames = 40;
+                        board.place_piece(Piece::Player1, player1_move.0 + 1, player1_move.1 + 1);
+                    } else {
+                        flash_frames -= 1;
+                    }
+                }
+                draw_board(&board, Piece::Empty);
+            }
+            GameState::Player2Move => {
+                draw_board(&board, Piece::Empty);
+                bottom_message("Player 2 - Select Empty Square");
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    let loc = mouse_position();
+                    if let Some(square) = position_to_square(&loc) {
+                        if board.is_empty(square.0 + 1, square.1 + 1) {
+                            player1_move = square;
+                            state = GameState::WaitForClick;
+                        }
+                    }
+                }
+            }
+            GameState::WaitForClick => {
+                draw_board(&board, Piece::Empty);
+                bottom_message("Click board to generate next stage");
                 if is_mouse_button_pressed(MouseButton::Left) {
                     break;
                 }
             }
-            GameState::Player2Move => todo!(),
             GameState::End => todo!(),
         }
 
@@ -173,6 +216,12 @@ fn position_to_square(loc: &(f32, f32)) -> Option<(usize, usize)> {
     let y = ((loc.1 - LINE_SPACE * 2.0) / (grid_height / 5.0)) as usize;
 
     Some((x, y))
+}
+
+fn bottom_message<S: AsRef<str>>(msg: S) {
+    let h = screen_height();
+    let text_size = measure_text(msg.as_ref(), None, 24, 1.0);
+    center_text(msg.as_ref(), h - text_size.height, screen_width());
 }
 
 fn center_text<S: AsRef<str>>(text: S, ypos: f32, width: f32) {
