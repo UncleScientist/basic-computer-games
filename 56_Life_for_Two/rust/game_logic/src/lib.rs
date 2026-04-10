@@ -46,22 +46,16 @@ impl Board {
 
     // returns true if piece was successfully placed
     pub fn place_piece(&mut self, player: Piece, x: usize, y: usize) -> bool {
-        if self.grid[y][x] != Piece::Empty {
+        if self.grid[y - 1][x - 1] != Piece::Empty {
             return false;
         }
-        self.grid[y][x] = player;
+        self.grid[y - 1][x - 1] = player;
         true
     }
 
-    pub fn get_board(&self) -> &[[Piece; 5]; 5] {
+    pub fn get_grid(&self) -> &[[Piece; 5]; 5] {
         &self.grid
     }
-
-    // abcd
-    // a = player two count
-    // b = player one count
-    // c = player two's surrounding pieces
-    // d = player one's surrounding pieces
 
     // returns count of player 1 and player 2 pieces
     pub fn step(&mut self) -> (usize, usize) {
@@ -94,32 +88,32 @@ impl Board {
                         }
                     }
                 }
-                println!("{i},{j} -> {p1_count} + {p2_count}");
 
                 let total_count = p1_count + p2_count;
 
+                // Following logic derived from:
+                // https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life
                 match self.grid[i as usize][j as usize] {
-                    Piece::Empty => {
-                        if total_count == 3 {
-                            if p1_count > p2_count {
-                                next_grid[i as usize][j as usize] = Piece::Player1;
-                            } else {
-                                next_grid[i as usize][j as usize] = Piece::Player2;
-                            }
-                        }
-                    }
-
-                    // Any live cell with fewer than two live neighbors dies
+                    // 1. Any live cell with fewer than two live neighbors dies
                     _ if total_count < 2 => {
                         next_grid[i as usize][j as usize] = Piece::Empty;
                     }
 
-                    // Any live cell with more than three live neighbors dies
+                    // 3. Any live cell with more than three live neighbors dies
                     _ if total_count > 3 => {
                         next_grid[i as usize][j as usize] = Piece::Empty;
                     }
 
-                    // Any live cell with two or three neighbors lives on
+                    // 4. Any dead cell with exactly three neighbors becomes live
+                    Piece::Empty if total_count == 3 => {
+                        if p1_count > p2_count {
+                            next_grid[i as usize][j as usize] = Piece::Player1;
+                        } else {
+                            next_grid[i as usize][j as usize] = Piece::Player2;
+                        }
+                    }
+
+                    // 2. Any live cell with two or three neighbors lives on
                     _ => {
                         next_grid[i as usize][j as usize] = self.grid[i as usize][j as usize];
                     }
@@ -136,6 +130,14 @@ impl Board {
         self.grid = next_grid;
 
         (total_p1, total_p2)
+    }
+
+    pub fn clear_piece(&mut self, x: usize, y: usize) {
+        self.grid[y - 1][x - 1] = Piece::Empty;
+    }
+
+    pub fn is_empty(&self, x: usize, y: usize) -> bool {
+        self.grid[y - 1][x - 1] == Piece::Empty
     }
 }
 
