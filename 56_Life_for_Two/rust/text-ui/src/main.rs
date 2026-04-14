@@ -8,7 +8,7 @@ use life_for_two::{Board, Piece};
 
 fn main() {
     println!("{:<33}LIFE2", "");
-    println!("{:<15}CREATIE COMPUTING  MORRISTOWN, NEW JERSEY\n\n\n", "");
+    println!("{:<15}CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\n\n\n", "");
 
     let mut board = Board::new();
     println!("{:<10}U.B. LIFE GAME", "");
@@ -36,9 +36,9 @@ fn main() {
         }
 
         print!("PLAYER 1 ");
-        let (p1x, p1y) = get_single_input(&mut board);
+        let (p1x, p1y) = get_single_input(&board);
         print!("PLAYER 2 ");
-        let (p2x, p2y) = get_single_input(&mut board);
+        let (p2x, p2y) = get_single_input(&board);
 
         if p1x == p2x && p1y == p2y {
             println!("SAME COORD.  SET TO 0");
@@ -54,12 +54,12 @@ fn display_board(board: &Board) {
     let grid = board.get_grid();
 
     println!("0  1  2  3  4  5  0");
-    for row in 0..5 {
-        print!("{}  ", row + 1);
-        for col in 0..5 {
-            print!("{}  ", grid[row][col]);
+    for (r, row) in grid.iter().enumerate() {
+        print!("{}  ", r + 1);
+        for piece in row.iter() {
+            print!("{piece}  ");
         }
-        println!("{}", row + 1);
+        println!("{}", r + 1);
     }
     println!("0  1  2  3  4  5  0");
 }
@@ -83,17 +83,15 @@ fn get_single_input(board: &Board) -> (usize, usize) {
     loop {
         println!("X,Y");
         let (x, y) = get_input();
-        let Ok(x) = x.parse::<usize>() else {
-            continue;
-        };
-        let Ok(y) = y.parse::<usize>() else {
-            continue;
-        };
-        if !(1..=5).contains(&x) || !(1..=5).contains(&y) || !board.is_empty(x, y) {
-            println!("ILLEGAL COORDS. RETYPE");
-            continue;
+        if let Ok(x) = x.parse::<usize>()
+            && let Ok(y) = y.parse::<usize>()
+            && (1..=5).contains(&x)
+            && (1..=5).contains(&y)
+            && board.is_empty(x, y)
+        {
+            return (x, y);
         }
-        return (x, y);
+        println!("ILLEGAL COORDS. RETYPE");
     }
 }
 
@@ -110,5 +108,6 @@ fn get_input() -> (String, String) {
         {
             return (x.trim().to_string(), y.trim().to_string());
         }
+        println!("?REENTER");
     }
 }
