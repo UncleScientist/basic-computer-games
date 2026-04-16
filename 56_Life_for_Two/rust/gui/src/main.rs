@@ -69,11 +69,11 @@ async fn main() {
 
     intro(INTRO_FRAMES).await;
 
-    player_setup(&mut board, INITIAL_COUNT, 1).await;
-    player_setup(&mut board, INITIAL_COUNT, 2).await;
+    board.player_setup(INITIAL_COUNT, 1).await;
+    board.player_setup(INITIAL_COUNT, 2).await;
 
     let winner = loop {
-        wait_for_click(&board, same_spot).await;
+        board.wait_for_click(same_spot).await;
         match board.step() {
             (0, 0) => break GameResult::Draw,
             (_, 0) => break GameResult::Player1Wins,
@@ -81,82 +81,199 @@ async fn main() {
             _ => {}
         };
 
-        let p1_square = player_move(&board, 1).await;
-        flash_position(&mut board, p1_square).await;
-        let p2_square = player_move(&board, 2).await;
-        board.place_piece(Piece::Player1, p1_square.0, p1_square.1);
-        board.place_piece(Piece::Player2, p2_square.0, p2_square.1);
+        let p1_square = board.player_move(1).await;
+        board.flash_position(p1_square).await;
+        let p2_square = board.player_move(2).await;
         same_spot = p1_square == p2_square;
+
+        if !same_spot {
+            board.place_piece(Piece::Player1, p1_square.0, p1_square.1);
+            board.place_piece(Piece::Player2, p2_square.0, p2_square.1);
+        }
     };
 
-    end_game(&board, winner).await;
+    board.end_game(winner).await;
 }
 
-fn draw_board(board: &Board, hide: Piece) {
-    let w = screen_width();
-    let h = screen_height();
+trait GuiGame {
+    async fn player_setup(&mut self, count: usize, player: usize);
+    async fn wait_for_click(&self, same_spot: bool);
+    async fn player_move(&self, player: usize) -> (usize, usize);
+    async fn flash_position(&mut self, loc: (usize, usize));
+    async fn end_game(&self, winner: GameResult);
 
-    let grid_width = w - LINE_SPACE * 4.0;
-    let grid_height = h - LINE_SPACE * 4.0;
+    fn draw(&self, hide: Piece);
+}
 
-    let mut vertical_pos = LINE_SPACE * 2.0;
-    while vertical_pos < w - LINE_SPACE * 2.0 + 1.0 {
-        draw_line(
-            vertical_pos,
-            LINE_SPACE * 2.0,
-            vertical_pos,
-            grid_height + LINE_SPACE * 2.0,
-            2.0,
-            GRAY,
-        );
-        vertical_pos += grid_width / 5.0;
+impl GuiGame for Board {
+    async fn player_setup(&mut self, mut pieces_remaining: usize, player: usize) {
+        loop {
+            clear_frame().await;
+            self.draw(if player == 1 {
+                Piece::Empty
+            } else {
+                Piece::Player1
+            });
+
+            bottom_message(format!("Player {player} - Select {INITIAL_COUNT} Squares"));
+
+            if is_mouse_button_pressed(MouseButton::Left) {
+                let loc = mouse_position();
+                let Some(square) = position_to_square(&loc) else {
+                    continue;
+                };
+                if self.is_empty(square.0, square.1) {
+                    self.place_piece(
+                        if player == 1 {
+                            Piece::Player1
+                        } else {
+                            Piece::Player2
+                        },
+                        square.0,
+                        square.1,
+                    );
+                    pieces_remaining -= 1;
+                    if pieces_remaining == 0 {
+                        return;
+                    }
+                }
+            }
+        }
     }
 
-    let mut horizontal_pos = LINE_SPACE * 2.0;
-    while horizontal_pos < h - LINE_SPACE * 2.0 + 1.0 {
-        draw_line(
-            LINE_SPACE * 2.0,
-            horizontal_pos,
-            grid_width + LINE_SPACE * 2.0,
-            horizontal_pos,
-            2.0,
-            GRAY,
-        );
-        horizontal_pos += grid_height / 5.0;
+    async fn wait_for_click(&self, same_spot: bool) {
+        loop {
+            clear_frame().await;
+            self.draw(Piece::Empty);
+            if same_spot {
+                top_message("Players chose the same location - leaving it empty!");
+            }
+            bottom_message("Click board to generate next stage");
+            if is_mouse_button_pressed(MouseButton::Left) {
+                return;
+            }
+        }
     }
 
-    let piece_x = LINE_SPACE * 2.0 + grid_width / 10.0;
-    let piece_y = LINE_SPACE * 2.0 + grid_height / 10.0;
+    async fn player_move(&self, player: usize) -> (usize, usize) {
+        loop {
+            clear_frame().await;
+            self.draw(Piece::Empty);
+            bottom_message(format!("Player {player} - Select Empty Square"));
+            if is_mouse_button_pressed(MouseButton::Left) {
+                let loc = mouse_position();
+                let Some(square) = position_to_square(&loc) else {
+                    continue;
+                };
+                if self.is_empty(square.0, square.1) {
+                    return square;
+                }
+            }
+        }
+    }
 
-    let font_size = 1.5 * grid_width.min(grid_height) / 5.0;
-    let star = measure_text("*", None, font_size as u16, 1.0);
-    let hash = measure_text("#", None, font_size as u16, 1.0);
-    let grid = board.get_grid();
-    for (r, row) in grid.iter().enumerate() {
-        for (c, piece) in row.iter().enumerate() {
-            let xpos = piece_x + c as f32 * grid_width / 5.0;
-            let ypos = piece_y + r as f32 * grid_height / 5.0;
-            // draw_circle(xpos, ypos, 1.0, WHITE);
-            match piece {
-                Piece::Player1 if hide != Piece::Player1 => {
-                    draw_text(
-                        "*",
-                        xpos - star.width / 2.0,
-                        ypos + star.height / 2.0,
-                        font_size,
-                        WHITE,
-                    );
+    async fn flash_position(&mut self, pos: (usize, usize)) {
+        let mut flasher = Flash::new();
+        loop {
+            clear_frame().await;
+            match flasher.next_frame() {
+                FlashState::Off => {
+                    self.clear_piece(pos.0, pos.1);
                 }
-                Piece::Player2 if hide != Piece::Player2 => {
-                    draw_text(
-                        "#",
-                        xpos - hash.width / 2.0,
-                        ypos + hash.height / 2.0,
-                        font_size,
-                        WHITE,
-                    );
+                FlashState::On => {
+                    self.place_piece(Piece::Player1, pos.0, pos.1);
                 }
-                _ => {}
+                FlashState::Steady => {}
+                FlashState::Done => {
+                    return;
+                }
+            };
+            self.draw(Piece::Empty);
+        }
+    }
+
+    async fn end_game(&self, winner: GameResult) {
+        loop {
+            clear_frame().await;
+            self.draw(Piece::Empty);
+            match winner {
+                GameResult::Draw => top_message("Game ends in a draw!"),
+                GameResult::Player1Wins => top_message("Player 1 is the winner!"),
+                GameResult::Player2Wins => top_message("Player 2 is the winner!"),
+            };
+            bottom_message("Click to exit");
+            if is_mouse_button_pressed(MouseButton::Left) {
+                return;
+            }
+        }
+    }
+
+    fn draw(&self, hide: Piece) {
+        let w = screen_width();
+        let h = screen_height();
+
+        let grid_width = w - LINE_SPACE * 4.0;
+        let grid_height = h - LINE_SPACE * 4.0;
+
+        let mut vertical_pos = LINE_SPACE * 2.0;
+        while vertical_pos < w - LINE_SPACE * 2.0 + 1.0 {
+            draw_line(
+                vertical_pos,
+                LINE_SPACE * 2.0,
+                vertical_pos,
+                grid_height + LINE_SPACE * 2.0,
+                2.0,
+                GRAY,
+            );
+            vertical_pos += grid_width / 5.0;
+        }
+
+        let mut horizontal_pos = LINE_SPACE * 2.0;
+        while horizontal_pos < h - LINE_SPACE * 2.0 + 1.0 {
+            draw_line(
+                LINE_SPACE * 2.0,
+                horizontal_pos,
+                grid_width + LINE_SPACE * 2.0,
+                horizontal_pos,
+                2.0,
+                GRAY,
+            );
+            horizontal_pos += grid_height / 5.0;
+        }
+
+        let piece_x = LINE_SPACE * 2.0 + grid_width / 10.0;
+        let piece_y = LINE_SPACE * 2.0 + grid_height / 10.0;
+
+        let font_size = 1.5 * grid_width.min(grid_height) / 5.0;
+        let star = measure_text("*", None, font_size as u16, 1.0);
+        let hash = measure_text("#", None, font_size as u16, 1.0);
+        let grid = self.get_grid();
+        for (r, row) in grid.iter().enumerate() {
+            for (c, piece) in row.iter().enumerate() {
+                let xpos = piece_x + c as f32 * grid_width / 5.0;
+                let ypos = piece_y + r as f32 * grid_height / 5.0;
+                // draw_circle(xpos, ypos, 1.0, WHITE);
+                match piece {
+                    Piece::Player1 if hide != Piece::Player1 => {
+                        draw_text(
+                            "*",
+                            xpos - star.width / 2.0,
+                            ypos + star.height / 2.0,
+                            font_size,
+                            WHITE,
+                        );
+                    }
+                    Piece::Player2 if hide != Piece::Player2 => {
+                        draw_text(
+                            "#",
+                            xpos - hash.width / 2.0,
+                            ypos + hash.height / 2.0,
+                            font_size,
+                            WHITE,
+                        );
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -217,111 +334,6 @@ async fn intro(mut frames: usize) {
         );
         frames -= 1;
         if frames == 0 {
-            return;
-        }
-    }
-}
-
-async fn player_setup(board: &mut Board, mut pieces_remaining: usize, player: usize) {
-    loop {
-        clear_frame().await;
-        draw_board(
-            board,
-            if player == 1 {
-                Piece::Empty
-            } else {
-                Piece::Player1
-            },
-        );
-
-        bottom_message(format!("Player {player} - Select {INITIAL_COUNT} Squares"));
-
-        if is_mouse_button_pressed(MouseButton::Left) {
-            let loc = mouse_position();
-            let Some(square) = position_to_square(&loc) else {
-                continue;
-            };
-            if board.is_empty(square.0, square.1) {
-                board.place_piece(
-                    if player == 1 {
-                        Piece::Player1
-                    } else {
-                        Piece::Player2
-                    },
-                    square.0,
-                    square.1,
-                );
-                pieces_remaining -= 1;
-                if pieces_remaining == 0 {
-                    return;
-                }
-            }
-        }
-    }
-}
-
-async fn wait_for_click(board: &Board, same_spot: bool) {
-    loop {
-        clear_frame().await;
-        draw_board(board, Piece::Empty);
-        if same_spot {
-            top_message("Players chose the same location - leaving it empty!");
-        }
-        bottom_message("Click board to generate next stage");
-        if is_mouse_button_pressed(MouseButton::Left) {
-            return;
-        }
-    }
-}
-
-async fn player_move(board: &Board, player: usize) -> (usize, usize) {
-    loop {
-        clear_frame().await;
-        draw_board(board, Piece::Empty);
-        bottom_message(format!("Player {player} - Select Empty Square"));
-        if is_mouse_button_pressed(MouseButton::Left) {
-            let loc = mouse_position();
-            let Some(square) = position_to_square(&loc) else {
-                continue;
-            };
-            if board.is_empty(square.0, square.1) {
-                return square;
-            }
-        }
-    }
-}
-
-async fn flash_position(board: &mut Board, pos: (usize, usize)) {
-    let mut flasher = Flash::new();
-    loop {
-        clear_frame().await;
-        match flasher.next_frame() {
-            FlashState::Off => {
-                board.clear_piece(pos.0, pos.1);
-            }
-            FlashState::On => {
-                board.place_piece(Piece::Player1, pos.0, pos.1);
-            }
-            FlashState::Steady => {}
-            FlashState::Done => {
-                return;
-            }
-        };
-        draw_board(board, Piece::Empty);
-    }
-}
-
-async fn end_game(board: &Board, winner: GameResult) {
-    loop {
-        clear_frame().await;
-        draw_board(board, Piece::Empty);
-        match winner {
-            GameResult::Draw => top_message("Game ends in a draw!"),
-            GameResult::Player1Wins => top_message("Player 1 is the winner!"),
-            GameResult::Player2Wins => top_message("Player 2 is the winner!"),
-        };
-        bottom_message("Click to exit");
-        if is_mouse_button_pressed(MouseButton::Left) {
             return;
         }
     }
