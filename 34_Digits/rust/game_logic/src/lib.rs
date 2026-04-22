@@ -45,8 +45,7 @@ impl Guesser {
     pub fn guess_sequence(&mut self, numbers: [f32; 10]) -> Result<Vec<GuessResult>, GameError> {
         let mut retval = Vec::new();
         for num in numbers {
-            let w = num - 1.0;
-            if !(-1.0..=1.0).contains(&w) {
+            if num != 0.0 && num != 1.0 && num != 2.0 {
                 return Err(GameError::BadDigit);
             }
             let mut guess = 0.0;
@@ -71,11 +70,14 @@ impl Guesser {
                 right_so_far: self.total_correct_guesses,
             });
 
-            self.m[self.z][num as usize] += 1.0;
-            self.l[self.z1][num as usize] += 1.0;
-            self.k[self.z2][num as usize] += 1.0;
-            self.z -= (self.z / 9) * 9;
-            self.z = 3 * self.z + num as usize;
+            if guess == num {
+                self.m[self.z][num as usize] += 1.0;
+                self.l[self.z1][num as usize] += 1.0;
+                self.k[self.z2][num as usize] += 1.0;
+                self.z -= (self.z / 9) * 9;
+                self.z = 3 * self.z + num as usize;
+            }
+
             self.z1 = self.z - (self.z / 9) * 9;
             self.z2 = num as usize;
         }
