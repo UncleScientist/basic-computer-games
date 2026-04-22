@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = [ "game_logic", "text-ui" ]
+default-members = [ "text-ui" ]
+
+[workspace.dependencies]
+bowling = { path = "game_logic" }
