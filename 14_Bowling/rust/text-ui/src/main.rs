@@ -72,6 +72,7 @@ fn main() {
     }
     println!();
     for player in 1..=2 {
+        #[allow(clippy::needless_range_loop)]
         for i in 1..=3 {
             for j in 1..=10 {
                 print!(" {}", result[j * player][i]);
