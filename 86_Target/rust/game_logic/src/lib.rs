@@ -1,5 +1,6 @@
 use rand::RngExt;
 
+#[derive(Debug)]
 pub struct Target {
     number_of_shots: usize,
     radians_x: f32,
@@ -62,20 +63,23 @@ impl Target {
         if distance < 20.0 {
             return FireResult::SelfDestructed;
         }
+
         let radians_x = degrees_x.to_radians();
         let radians_z = degrees_z.to_radians();
         let x1 = distance * radians_z.sin() * radians_x.cos();
         let y1 = distance * radians_z.sin() * radians_x.sin();
         let z1 = distance * radians_z.cos();
-        let distance_from_target = ((x1 - self.loc.0) * (x1 - self.loc.0)
-            + (y1 - self.loc.1) * (y1 - self.loc.1)
-            + (z1 - self.loc.2) * (z1 - self.loc.2))
-            .sqrt();
+        let delta_x = x1 - self.loc.0;
+        let delta_y = y1 - self.loc.1;
+        let delta_z = z1 - self.loc.2;
+        let distance_from_target =
+            (delta_x * delta_x + delta_y * delta_y + delta_z * delta_z).sqrt();
 
         if distance_from_target > 20.0 {
             FireResult::Miss(Explosion {
                 radians_x,
                 radians_z,
+                delta: (delta_x, delta_y, delta_z),
                 coords: (x1, y1, z1),
                 distance_from_target,
             })
@@ -85,19 +89,23 @@ impl Target {
     }
 }
 
+#[derive(Debug)]
 pub enum FireResult {
     SelfDestructed,
     Miss(Explosion),
     Hit(usize, f32), // number of shots required, distance from target
 }
 
+#[derive(Debug)]
 pub struct Explosion {
     pub radians_x: f32,
     pub radians_z: f32,
+    pub delta: (f32, f32, f32),
     pub coords: (f32, f32, f32),
     pub distance_from_target: f32,
 }
 
+#[derive(Debug)]
 pub struct TargetInfo {
     pub loc: (f32, f32, f32),
     pub radians_x: f32,
