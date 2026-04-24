@@ -255,6 +255,9 @@ dependencies = [
 [[package]]
 name = "text-ui"
 version = "0.1.0"
+dependencies = [
+ "target",
+]
 
 [[package]]
 name = "unicode-ident"
