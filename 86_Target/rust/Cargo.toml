@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "game_logic", "text-ui" ]
+members = [ "game_logic", "text-ui", "gui" ]
 default-members = [ "text-ui" ]
 
 [workspace.dependencies]
