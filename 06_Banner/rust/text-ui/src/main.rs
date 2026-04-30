@@ -23,7 +23,15 @@ fn main() {
     let centered = prompt_for_input("CENTERED").as_str() > "P";
 
     // Line 23
-    let elem = prompt_for_input("CHARACTER (TYPE 'ALL' IF YOU WANT CHARACTER BEING PRINTED)");
+    let (elem, elem_len) = {
+        let text = prompt_for_input("CHARACTER (TYPE 'ALL' IF YOU WANT CHARACTER BEING PRINTED)");
+        if text == "ALL".to_string() {
+            (None, 1)
+        } else {
+            let len = text.len();
+            (Some(text), len)
+        }
+    };
 
     // Lines 29-30
     let message = prompt_for_input("STATEMENT");
@@ -31,7 +39,7 @@ fn main() {
     // Note: Ignoring line 35 as it has no effect
 
     let centering = if centered {
-        (63.0 - 4.5 * vert as f32) / (elem.len() as f32 + 1.0)
+        (63.0 - 4.5 * vert as f32) / (elem_len as f32 + 1.0)
     } else {
         0.0
     } as usize;
