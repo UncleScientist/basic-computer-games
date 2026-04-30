@@ -25,7 +25,7 @@ fn main() {
     // Line 23
     let (elem, elem_len) = {
         let text = prompt_for_input("CHARACTER (TYPE 'ALL' IF YOU WANT CHARACTER BEING PRINTED)");
-        if text == "ALL".to_string() {
+        if text == "ALL" {
             (None, 1)
         } else {
             let len = text.len();

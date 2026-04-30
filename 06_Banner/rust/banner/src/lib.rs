@@ -39,11 +39,7 @@ impl Banner {
         horiz: usize,
         vert: usize,
     ) -> BannerIterator<'_> {
-        let pixel = if let Some(ch) = chars {
-            Some(ch.as_ref().into())
-        } else {
-            None
-        };
+        let pixel = chars.map(|ch| ch.as_ref().into());
         BannerIterator {
             banner_data: self,
             text: text.as_ref().chars().collect(),
