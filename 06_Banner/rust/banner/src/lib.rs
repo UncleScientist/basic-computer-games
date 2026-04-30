@@ -12,7 +12,7 @@ pub struct BannerIterator<'a> {
     text: Vec<char>,
     horiz: usize,
     vert: usize,
-    pixel: String,
+    pixel: Option<String>,
 
     // Iterator info
     letter: usize, // which letter of the text we're on
@@ -35,23 +35,39 @@ impl Banner {
     pub fn banner<S: AsRef<str>, T: AsRef<str>>(
         &self,
         text: S,
-        pixel: T,
+        chars: Option<T>,
         horiz: usize,
         vert: usize,
     ) -> BannerIterator<'_> {
+        let pixel = if let Some(ch) = chars {
+            Some(ch.as_ref().into())
+        } else {
+            None
+        };
         BannerIterator {
             banner_data: self,
             text: text.as_ref().chars().collect(),
             horiz,
             vert,
-            pixel: pixel.as_ref().into(),
+            pixel,
             letter: 0,
             column: 0,
             hpos: 0,
         }
     }
 
-    fn generate_line(&self, ch: char, column: usize, vert_size: usize, pixel: &str) -> String {
+    fn generate_line(
+        &self,
+        ch: char,
+        column: usize,
+        vert_size: usize,
+        pixel: Option<&str>,
+    ) -> String {
+        let pix = if let Some(pix) = pixel {
+            pix.repeat(vert_size)
+        } else {
+            format!("{ch}").repeat(vert_size)
+        };
         if let Some(data) = self.charmap.get(&ch) {
             let mut returnval = String::from("");
             if data[column] == 0 {
@@ -62,9 +78,9 @@ impl Banner {
                 while bit > 0 {
                     bit -= 1;
                     if (bitmap & (1 << bit)) != 0 {
-                        returnval += &pixel.repeat(vert_size)
+                        returnval += &pix;
                     } else {
-                        returnval += &" ".repeat(vert_size * pixel.len())
+                        returnval += &" ".repeat(pix.len());
                     }
                 }
             }
@@ -100,7 +116,7 @@ impl Iterator for BannerIterator<'_> {
             self.text[self.letter],
             self.column,
             self.vert,
-            &self.pixel,
+            self.pixel.as_deref(),
         ))
     }
 }
@@ -112,7 +128,7 @@ mod test {
     #[test]
     fn test_generate_space() {
         let banner = Banner::new();
-        let mut text = banner.banner(" ", "#", 3, 3);
+        let mut text = banner.banner(" ", Some("#"), 3, 3);
         let line = text.next();
         let line = line.unwrap();
         println!("|{line}|");
@@ -121,7 +137,7 @@ mod test {
 
     #[test]
     fn test_generate_letter_a() {
-        const LETTER_A: [&str; characters::CHARACTER_WIDTH] = [
+        const LETTER_A: [&str; characters::CHARACTER_WIDTH + 1] = [
             " ######   ",
             "    #  #  ",
             "    #   # ",
@@ -129,9 +145,10 @@ mod test {
             "    #   # ",
             "    #  #  ",
             " ######   ",
+            "",
         ];
         let banner = Banner::new();
-        let text = banner.banner("A", "#", 1, 1);
+        let text = banner.banner("A", Some("#"), 1, 1);
         for (index, line) in text.enumerate() {
             assert_eq!(LETTER_A[index], line.as_str());
         }
@@ -139,7 +156,7 @@ mod test {
 
     #[test]
     fn test_generate_vert_expansion() {
-        const LETTER_A: [&str; characters::CHARACTER_WIDTH] = [
+        const LETTER_A: [&str; characters::CHARACTER_WIDTH + 1] = [
             "  ############      ",
             "        ##    ##    ",
             "        ##      ##  ",
@@ -147,9 +164,10 @@ mod test {
             "        ##      ##  ",
             "        ##    ##    ",
             "  ############      ",
+            "",
         ];
         let banner = Banner::new();
-        let text = banner.banner("A", "#", 1, 2);
+        let text = banner.banner("A", Some("#"), 1, 2);
         for (index, line) in text.enumerate() {
             assert_eq!(LETTER_A[index], line.as_str());
         }
@@ -157,7 +175,7 @@ mod test {
 
     #[test]
     fn test_generate_horiz_expansion() {
-        const LETTER_A: [&str; characters::CHARACTER_WIDTH * 2] = [
+        const LETTER_A: [&str; characters::CHARACTER_WIDTH * 2 + 2] = [
             " ######   ",
             " ######   ",
             "    #  #  ",
@@ -172,9 +190,11 @@ mod test {
             "    #  #  ",
             " ######   ",
             " ######   ",
+            "",
+            "",
         ];
         let banner = Banner::new();
-        let text = banner.banner("A", "#", 2, 1);
+        let text = banner.banner("A", Some("#"), 2, 1);
         for (index, line) in text.enumerate() {
             assert_eq!(LETTER_A[index], line.as_str());
         }
