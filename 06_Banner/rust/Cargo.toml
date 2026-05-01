@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "banner", "text-ui" ]
+members = [ "banner", "text-ui", "gui" ]
 default-members = [ "text-ui" ]
 
 [workspace.dependencies]
