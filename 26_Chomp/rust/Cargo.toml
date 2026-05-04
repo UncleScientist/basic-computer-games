@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "chomp", "text-ui" ] # , "gui" ]
+members = [ "chomp", "text-ui" , "gui" ]
 default-members = [ "text-ui" ]
 
 [workspace.dependencies]
