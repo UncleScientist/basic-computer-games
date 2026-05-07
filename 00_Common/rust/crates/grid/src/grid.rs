@@ -34,7 +34,6 @@ impl Grid {
         let grid_width = w - self.padding * 4.0;
         let grid_height = h - self.padding * 4.0;
 
-        //
         let mut vertical_pos = self.padding * 2.0;
         while vertical_pos < w - self.padding * 2.0 + 1.0 {
             draw_line(
@@ -61,8 +60,8 @@ impl Grid {
             horizontal_pos += grid_height / self.rows
         }
 
-        let piece_x = self.padding * 2.0 + grid_width / self.columns;
-        let piece_y = self.padding * 2.0 + grid_height / self.rows;
+        let piece_x = self.padding * 2.0 + grid_width / (self.columns * 2.0);
+        let piece_y = self.padding * 2.0 + grid_height / (self.rows * 2.0);
 
         let font_size = 1.5 * grid_width.min(grid_height) / self.columns.max(self.rows);
         for (r, row) in self.grid.iter().enumerate() {
@@ -95,5 +94,26 @@ impl Grid {
             }
         }
         self.grid = contents.into();
+    }
+
+    pub fn position_to_square(&self, loc: &(f32, f32)) -> Option<(usize, usize)> {
+        if loc.0 < self.padding * 2.0 || loc.1 < self.padding * 2.0 {
+            return None;
+        }
+
+        let w = screen_width();
+        let h = screen_height();
+
+        let grid_width = w - self.padding * 4.0;
+        let grid_height = h - self.padding * 4.0;
+
+        if loc.0 > self.padding * 2.0 + grid_width || loc.1 > self.padding * 2.0 + grid_height {
+            return None;
+        }
+
+        let x = ((loc.0 - self.padding * 2.0) / (grid_width / self.columns)) as usize;
+        let y = ((loc.1 - self.padding * 2.0) / (grid_height / self.rows)) as usize;
+
+        Some((x + 1, y + 1))
     }
 }
