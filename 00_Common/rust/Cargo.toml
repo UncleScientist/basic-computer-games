@@ -1,7 +1,3 @@
-#
-# Although there is currently only the `basic_input` crate here, I am anticipating
-# more utility crates for rust ports, as well as proc macro crates.
-#
 [workspace]
 resolver = "2"
-members = [ "crates/basic_input" ]
+members = [ "crates/basic_input", "crates/grid" ]
