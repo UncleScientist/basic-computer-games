@@ -2,6 +2,9 @@ use macroquad::prelude::*;
 
 use chomp::{Chomp, ChompResult};
 
+mod grid;
+use grid::Grid;
+
 #[macroquad::main("Chomp")]
 async fn main() {
     show_instructions().await;
@@ -23,7 +26,7 @@ async fn main() {
     let cols = loop {
         let cols = get_number("HOW MANY COLUMNS").await;
         if (1..=9).contains(&cols) {
-            break rows;
+            break cols;
         }
     };
 
@@ -34,16 +37,20 @@ async fn main() {
 }
 
 async fn play_game(game: &mut Chomp, player_count: usize) -> usize {
+    let mut grid = Grid::new(18.0, 9, 9);
+
+    update_board(game, &mut grid);
+
     let mut cur_player = 0;
     loop {
         clear_background(BLACK);
 
         let (row, col) = get_coords(
-            game,
             &format!(
                 "PLAYER {} COORDINATES OF CHOMP (ROW,COLUMN)",
                 cur_player + 1
             ),
+            &grid,
         )
         .await;
         match game.chomp(row - 1, col - 1) {
@@ -56,65 +63,28 @@ async fn play_game(game: &mut Chomp, player_count: usize) -> usize {
             }
         }
 
+        update_board(game, &mut grid);
+
         next_frame().await;
     }
 }
 
-const LINE_SPACE: f32 = 20.0;
-const GRID_SIZE: f32 = 9.0;
+fn update_board(board: &Chomp, grid: &mut Grid) {
+    let board = board.game_grid();
 
-fn draw_board(board: &Chomp) {
-    let w = screen_width();
-    let h = screen_height();
-
-    let grid_width = w - LINE_SPACE * 4.0;
-    let grid_height = h - LINE_SPACE * 4.0;
-
-    let mut vertical_pos = LINE_SPACE * 2.0;
-    while vertical_pos < w - LINE_SPACE * 2.0 + 1.0 {
-        draw_line(
-            vertical_pos,
-            LINE_SPACE * 2.0,
-            vertical_pos,
-            grid_height + LINE_SPACE * 2.0,
-            2.0,
-            GRAY,
-        );
-        vertical_pos += grid_width / GRID_SIZE;
-    }
-
-    let mut horizontal_pos = LINE_SPACE * 2.0;
-    while horizontal_pos < h - LINE_SPACE * 2.0 + 1.0 {
-        draw_line(
-            LINE_SPACE * 2.0,
-            horizontal_pos,
-            grid_width + LINE_SPACE * 2.0,
-            horizontal_pos,
-            2.0,
-            GRAY,
-        );
-        horizontal_pos += grid_height / GRID_SIZE;
-    }
-
-    let piece_x = LINE_SPACE * 2.0 + grid_width / (GRID_SIZE * 2.0);
-    let piece_y = LINE_SPACE * 2.0 + grid_height / (GRID_SIZE * 2.0);
-
-    let font_size = 1.5 * grid_width.min(grid_height) / GRID_SIZE;
-    let star = measure_text("*", None, font_size as u16, 1.0);
-    let grid = board.game_grid();
-    for (r, cols) in grid.iter().enumerate() {
-        for c in 0..*cols {
-            let xpos = piece_x + c as f32 * grid_width / GRID_SIZE;
-            let ypos = piece_y + r as f32 * grid_height / GRID_SIZE;
-            draw_text(
-                "*",
-                xpos - star.width / 2.0,
-                ypos + star.height / 2.0,
-                font_size,
-                WHITE,
-            );
+    let mut display = Vec::new();
+    for (rowindex, r) in board.iter().enumerate() {
+        let mut row = Vec::new();
+        for c in 0..*r {
+            if rowindex == 0 && c == 0 {
+                row.push('P');
+            } else {
+                row.push('*');
+            }
         }
+        display.push(row);
     }
+    grid.update(&display);
 }
 
 async fn show_instructions() {
@@ -160,42 +130,21 @@ async fn get_number<S: AsRef<str>>(prompt: S) -> usize {
     }
 }
 
-async fn get_coords<S: AsRef<str>>(game: &Chomp, prompt: S) -> (usize, usize) {
+async fn get_coords<S: AsRef<str>>(prompt: S, board: &Grid) -> (usize, usize) {
     loop {
         clear_background(BLACK);
-        draw_board(game);
+        board.draw();
         draw_text(prompt.as_ref(), 10., 20., 30., WHITE);
 
         if is_mouse_button_pressed(MouseButton::Left) {
             let loc = mouse_position();
-            if let Some(square) = position_to_square(&loc) {
+            if let Some(square) = board.position_to_square(&loc) {
                 return (square.1, square.0);
             }
         }
 
         next_frame().await;
     }
-}
-
-fn position_to_square(loc: &(f32, f32)) -> Option<(usize, usize)> {
-    if loc.0 < LINE_SPACE * 2.0 || loc.1 < LINE_SPACE * 2.0 {
-        return None;
-    }
-
-    let w = screen_width();
-    let h = screen_height();
-
-    let grid_width = w - LINE_SPACE * 4.0;
-    let grid_height = h - LINE_SPACE * 4.0;
-
-    if loc.0 > LINE_SPACE * 2.0 + grid_width || loc.1 > LINE_SPACE * 2.0 + grid_height {
-        return None;
-    }
-
-    let x = ((loc.0 - LINE_SPACE * 2.0) / (grid_width / GRID_SIZE)) as usize;
-    let y = ((loc.1 - LINE_SPACE * 2.0) / (grid_height / GRID_SIZE)) as usize;
-
-    Some((x + 1, y + 1))
 }
 
 async fn prompt_for_input<S: AsRef<str>>(prompt: S) -> String {
