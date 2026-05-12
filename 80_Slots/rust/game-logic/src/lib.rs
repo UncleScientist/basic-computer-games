@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rand::{
     distr::{Distribution, StandardUniform},
     rngs::ThreadRng,
@@ -19,6 +21,23 @@ pub enum SlotImage {
     Cherry,
 }
 
+impl Display for SlotImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SlotImage::Bar => "BAR",
+                SlotImage::Bell => "BELL",
+                SlotImage::Orange => "ORANGE",
+                SlotImage::Lemon => "LEMON",
+                SlotImage::Plum => "PLUM",
+                SlotImage::Cherry => "CHERRY",
+            }
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WinState {
     None,
@@ -28,6 +47,7 @@ pub enum WinState {
     Jackpot,
 }
 
+#[derive(Debug)]
 pub struct PullResult {
     pub dial1: SlotImage,
     pub dial2: SlotImage,
@@ -84,11 +104,11 @@ impl Slots {
 
     fn payout(result: WinState, bet: f32) -> f32 {
         match result {
-            WinState::None => 0.0,
-            WinState::Double => bet * 2.0,
-            WinState::DoubleBar => bet * 5.0,
-            WinState::TopDollar => bet * 10.0,
-            WinState::Jackpot => bet * 100.0,
+            WinState::None => -bet,
+            WinState::Double => bet * 3.0,
+            WinState::DoubleBar => bet * 6.0,
+            WinState::TopDollar => bet * 11.0,
+            WinState::Jackpot => bet * 101.0,
         }
     }
 }
@@ -153,26 +173,26 @@ mod test {
 
     #[test]
     fn test_no_payout() {
-        assert_eq!(0.0, Slots::payout(WinState::None, 5.0));
+        assert_eq!(-5.0, Slots::payout(WinState::None, 5.0));
     }
 
     #[test]
     fn test_double_payout() {
-        assert_eq!(2.0, Slots::payout(WinState::Double, 1.0));
+        assert_eq!(3.0, Slots::payout(WinState::Double, 1.0));
     }
 
     #[test]
     fn test_double_bar() {
-        assert_eq!(5.0, Slots::payout(WinState::DoubleBar, 1.0));
+        assert_eq!(6.0, Slots::payout(WinState::DoubleBar, 1.0));
     }
 
     #[test]
     fn test_top_dollar() {
-        assert_eq!(10.0, Slots::payout(WinState::TopDollar, 1.0));
+        assert_eq!(11.0, Slots::payout(WinState::TopDollar, 1.0));
     }
 
     #[test]
     fn test_jackpot() {
-        assert_eq!(100.0, Slots::payout(WinState::Jackpot, 1.0));
+        assert_eq!(101.0, Slots::payout(WinState::Jackpot, 1.0));
     }
 }
