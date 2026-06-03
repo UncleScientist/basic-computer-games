@@ -6,8 +6,8 @@ const TOTAL_UNITS: usize = 72000;
 
 #[derive(Debug)]
 pub struct Combat {
-    player: Units,
-    computer: Units,
+    pub player: Units,
+    pub computer: Units,
 }
 
 #[derive(Debug, PartialEq)]
@@ -27,8 +27,20 @@ impl Units {
         }
     }
 
-    fn score(&self) -> usize {
+    pub fn score(&self) -> usize {
         self.army.units() + self.navy.units() + self.air_force.units()
+    }
+
+    pub fn army_units(&self) -> usize {
+        self.army.units()
+    }
+
+    pub fn navy_units(&self) -> usize {
+        self.navy.units()
+    }
+
+    pub fn air_force_units(&self) -> usize {
+        self.air_force.units()
     }
 }
 
@@ -40,7 +52,7 @@ pub enum Unit {
 }
 
 impl Unit {
-    fn units(&self) -> usize {
+    pub fn units(&self) -> usize {
         match self {
             Unit::Army(a) => *a,
             Unit::Navy(n) => *n,
@@ -59,15 +71,15 @@ impl Unit {
 
 #[derive(Debug, PartialEq)]
 pub enum FirstBattleOutcome {
-    TooManyUnits,                                                  // Line 100
-    PlayerLose { units: Unit },                                    // Line 120
-    BothLose { player: Unit, computer: Unit },                     // Line 150
-    ComputerStoppedAttack,                                         // Line 230
-    ComputerLose { units: Unit },                                  // Line 250
-    ComputerLosePatrolBoat,                                        // Line 270-275
-    AttackWipedOut,                                                // Line 350
-    Dogfight,                                                      // Line 370
-    ComputerLoseArmyPatrol { p1: Unit, p2: Unit, computer: Unit }, // Line 380-381
+    TooManyUnits,                              // Line 100
+    PlayerLose { units: Unit },                // Line 120
+    BothLose { player: Unit, computer: Unit }, // Line 150
+    ComputerStoppedAttack,                     // Line 230
+    ComputerLose { units: Unit },              // Line 250
+    ComputerLosePatrolBoat,                    // Line 270-275
+    AttackWipedOut,                            // Line 350
+    Dogfight,                                  // Line 370
+    ComputerLoseArmyPatrol,                    // Line 380-381
 }
 
 #[derive(Debug, PartialEq)]
@@ -182,7 +194,7 @@ impl Combat {
                 self.player.army = Unit::Army(self.player.army.units() / 4);
                 self.player.navy = Unit::Navy(self.player.navy.units() / 3);
                 self.computer.army = Unit::Army(2 * self.computer.army.units() / 3);
-                FirstBattleOutcome::AttackWipedOut
+                FirstBattleOutcome::ComputerLoseArmyPatrol
             }
         }
     }
