@@ -250,7 +250,6 @@ impl Combat {
     pub fn combat_outcome(&self) -> CombatOutcome {
         let player_score = self.player.score();
         let computer_score = self.computer.score();
-        println!("p={player_score}, c={computer_score}");
 
         if player_score > 3 * computer_score / 2 {
             CombatOutcome::PlayerWins

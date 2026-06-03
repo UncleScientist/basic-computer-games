@@ -92,6 +92,62 @@ fn main() {
         combat.player.air_force_units(),
         combat.computer.air_force_units()
     );
+    println!("What is your next move?");
+    println!("Army=1  Navy=2  Air Force=3");
+    let choice = prompt_for_input("");
+    loop {
+        println!("How many men");
+        let amount = prompt_for_input("");
+        let attacking_unit = match choice {
+            2 => Unit::Navy(amount),
+            3 => Unit::AirForce(amount),
+            _ => Unit::Army(amount),
+        };
+        match combat.second_battle(attacking_unit) {
+            combat::SecondBattleOutcome::TooManyUnits => continue,
+            combat::SecondBattleOutcome::PlayerDestroyedComputer => {
+                println!("You destroyed my army!");
+                break;
+            }
+            combat::SecondBattleOutcome::ComputerWipedOutAttack => {
+                println!("I wiped out your attack!");
+                break;
+            }
+            combat::SecondBattleOutcome::ComputerSankTwoBattleships => {
+                println!("I sunk two of your battleships, and my air force");
+                println!("wiped out your ungaurded capitol.");
+                break;
+            }
+            combat::SecondBattleOutcome::PlayerShotDownPlanes => {
+                println!("Your Navy shot down three of my XIII planes,");
+                println!("and sunk three battleships.");
+                break;
+            }
+            combat::SecondBattleOutcome::PlayerInShambles => {
+                println!("My Navy and Air Force in a combined attack left");
+                println!("your country in shambles.");
+                break;
+            }
+            combat::SecondBattleOutcome::PlayerCrashedIntoHouse => {
+                println!("One of your planes crashed into my house. I am dead.");
+                println!("My country fell apart.");
+                break;
+            }
+        }
+    }
+    match combat.combat_outcome() {
+        combat::CombatOutcome::PlayerWins => {
+            println!("You won, oh! Shucks!!!!");
+        }
+        combat::CombatOutcome::ComputerWins => {
+            println!("You lost - I conquered your country. It serves you");
+            println!("right for playing this stupid game!!!");
+        }
+        combat::CombatOutcome::TreatyOfParis => {
+            println!("The Treaty of Paris concluded that we take our");
+            println!("respective countries and live in peace.");
+        }
+    }
 }
 
 fn prompt_for_input<S: AsRef<str>>(prompt: S) -> usize {
