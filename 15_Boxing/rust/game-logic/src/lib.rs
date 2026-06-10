@@ -1,3 +1,5 @@
+use std::{fmt::Display, str::FromStr};
+
 use rand::{
     distr::{Distribution, StandardUniform},
     rngs::ThreadRng,
@@ -22,7 +24,7 @@ pub struct Boxer {
     points_against: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Punch {
     FullSwing,
     Hook,
@@ -52,6 +54,13 @@ pub enum Outcome {
     BlocksAndHooks,
     Knockout,
     Misses,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum MatchResult {
+    Knockout,
+    Player,
+    Opponent,
 }
 
 impl Boxing {
@@ -100,6 +109,10 @@ impl Boxing {
         self.opponent.name.as_str()
     }
 
+    pub fn opponent_advantage(&self) -> Punch {
+        self.opponent.best
+    }
+
     pub fn start_round(&mut self) {
         self.player.points_against = 0;
         self.opponent.points_against = 0;
@@ -115,6 +128,16 @@ impl Boxing {
         }
     }
 
+    pub fn match_result(&self) -> MatchResult {
+        if self.opponent_rounds_won + self.player_rounds_won != 3 {
+            MatchResult::Knockout
+        } else if self.opponent_rounds_won > self.player_rounds_won {
+            MatchResult::Opponent
+        } else {
+            MatchResult::Player
+        }
+    }
+
     pub fn who_swings(&mut self) -> Turn {
         let turn = self.rng.random::<Turn>();
         self.current = Some(turn);
@@ -122,7 +145,8 @@ impl Boxing {
     }
 
     pub fn player_swings(&mut self, punch: Punch) -> Outcome {
-        if self.current != Some(Turn::Player) {
+        let current = self.current.take();
+        if current != Some(Turn::Player) {
             panic!("current boxer is not the player");
         }
 
@@ -174,7 +198,8 @@ impl Boxing {
     }
 
     pub fn opponent_swings(&mut self) -> (Punch, Outcome) {
-        if self.current != Some(Turn::Opponent) {
+        let current = self.current.take();
+        if current != Some(Turn::Opponent) {
             panic!("current boxer is not the opponent");
         }
 
@@ -249,5 +274,34 @@ impl Distribution<Turn> for StandardUniform {
             1 => Turn::Opponent,
             _ => unreachable!(),
         }
+    }
+}
+
+impl FromStr for Punch {
+    type Err = String;
+
+    fn from_str(line: &str) -> Result<Self, Self::Err> {
+        Ok(match line {
+            "1" => Punch::FullSwing,
+            "2" => Punch::Hook,
+            "3" => Punch::Uppercut,
+            "4" => Punch::Jab,
+            _ => return Err("Invalid Choice".to_string()),
+        })
+    }
+}
+
+impl Display for Punch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Punch::FullSwing => "Full Swing",
+                Punch::Hook => "Hook",
+                Punch::Uppercut => "Uppercut",
+                Punch::Jab => "Jab",
+            }
+        )
     }
 }
