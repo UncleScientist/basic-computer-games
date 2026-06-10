@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = [ "game-logic" ] #, "text-ui"]
+# default-members = [ "text-ui" ]
+
+[workspace.dependencies]
+combat = { path = "game-logic" }
