@@ -2,6 +2,9 @@
 //! Computer plays red
 //! Human plays black
 
+use std::fmt::Display;
+
+#[derive(Debug)]
 pub struct Checkers {
     board: [[Piece; 8]; 8],
 }
@@ -15,11 +18,81 @@ pub enum Piece {
     BlackKing,
 }
 
+impl Display for Piece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Piece::Empty => ".",
+                Piece::Red => "X",
+                Piece::Black => "O",
+                Piece::RedKing => "X*",
+                Piece::BlackKing => "O*",
+            }
+        )
+    }
+}
+
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BoardState {
     RedWins,
     BlackWins,
     GameContinues,
+}
+
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub enum NextMove {
+    JumpAgain,
+    ComputerGoes,
+}
+
+pub struct ComputerMove {
+    from_x: usize,
+    from_y: usize,
+    to_x: usize,
+    to_y: usize,
+}
+
+impl Display for ComputerMove {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "FROM {} {} TO {} {}",
+            self.from_y,
+            7 - self.from_x,
+            self.to_y,
+            7 - self.to_x
+        )
+    }
+}
+
+impl ComputerMove {
+    fn default() -> Self {
+        Self {
+            from_x: 0,
+            from_y: 0,
+            to_x: 0,
+            to_y: 0,
+        }
+    }
+
+    fn new(from_x: usize, from_y: usize, to_x: usize, to_y: usize) -> Self {
+        Self {
+            from_x,
+            from_y,
+            to_x,
+            to_y,
+        }
+    }
+
+    fn between_x(&self) -> usize {
+        (self.from_x + self.to_x) / 2
+    }
+
+    fn between_y(&self) -> usize {
+        (self.from_y + self.to_y) / 2
+    }
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -41,14 +114,14 @@ impl Checkers {
         use Piece::*;
         Self {
             board: [
-                [Red, Empty, Red, Empty, Red, Empty, Red, Empty],
                 [Empty, Red, Empty, Red, Empty, Red, Empty, Red],
                 [Red, Empty, Red, Empty, Red, Empty, Red, Empty],
+                [Empty, Red, Empty, Red, Empty, Red, Empty, Red],
                 [Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty],
                 [Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty],
-                [Empty, Black, Empty, Black, Empty, Black, Empty, Black],
                 [Black, Empty, Black, Empty, Black, Empty, Black, Empty],
                 [Empty, Black, Empty, Black, Empty, Black, Empty, Black],
+                [Black, Empty, Black, Empty, Black, Empty, Black, Empty],
             ],
         }
     }
@@ -78,8 +151,8 @@ impl Checkers {
         }
     }
 
-    pub fn computer_move(&mut self) {
-        let mut best_move: (usize, usize, usize, usize, isize) = (0, 0, 0, 0, 0);
+    pub fn computer_move(&mut self) -> ComputerMove {
+        let mut best_move: (ComputerMove, isize) = (ComputerMove::default(), 0);
 
         for x in 0..8 {
             for y in 0..8 {
@@ -88,44 +161,44 @@ impl Checkers {
                         let left = if y > 0 {
                             self.score_move(x, y, Direction::Southwest)
                         } else {
-                            best_move.4
+                            best_move.1
                         };
-                        if left > best_move.4 {
+                        if left > best_move.1 {
                             let u = x + 1;
                             let v = y - 1;
-                            best_move = (x, y, u, v, left);
+                            best_move = (ComputerMove::new(x, y, u, v), left);
                         }
                         let right = if y < 7 {
                             self.score_move(x, y, Direction::Southeast)
                         } else {
-                            best_move.4
+                            best_move.1
                         };
-                        if right > best_move.4 {
+                        if right > best_move.1 {
                             let u = x + 1;
                             let v = y + 1;
-                            best_move = (x, y, u, v, right);
+                            best_move = (ComputerMove::new(x, y, u, v), right);
                         }
                     }
                     Piece::RedKing if x > 0 => {
                         let left = if y > 0 {
                             self.score_move(x, y, Direction::Northwest)
                         } else {
-                            best_move.4
+                            best_move.1
                         };
-                        if left > best_move.4 {
+                        if left > best_move.1 {
                             let u = x - 1;
                             let v = y - 1;
-                            best_move = (x, y, u, v, left);
+                            best_move = (ComputerMove::new(x, y, u, v), left);
                         }
                         let right = if y < 7 {
                             self.score_move(x, y, Direction::Northeast)
                         } else {
-                            best_move.4
+                            best_move.1
                         };
-                        if right > best_move.4 {
+                        if right > best_move.1 {
                             let u = x - 1;
                             let v = y + 1;
-                            best_move = (x, y, u, v, right);
+                            best_move = (ComputerMove::new(x, y, u, v), right);
                         }
                     }
                     _ => continue,
@@ -134,16 +207,17 @@ impl Checkers {
         }
 
         // make the best move
-        self.board[best_move.2][best_move.3] = if best_move.2 == 7 {
+        self.board[best_move.0.to_x][best_move.0.to_y] = if best_move.0.to_x == 7 {
             Piece::RedKing
         } else {
-            self.board[best_move.0][best_move.1]
+            self.board[best_move.0.from_x][best_move.0.from_y]
         };
-        self.board[best_move.0][best_move.1] = Piece::Empty;
-        if best_move.0.abs_diff(best_move.2) == 2 {
-            self.board[(best_move.0 + best_move.2) / 2][(best_move.1 + best_move.3) / 2] =
-                Piece::Empty;
+        self.board[best_move.0.from_x][best_move.0.from_y] = Piece::Empty;
+        if best_move.0.from_x.abs_diff(best_move.0.to_x) == 2 {
+            self.board[best_move.0.between_x()][best_move.0.between_y()] = Piece::Empty;
         }
+
+        best_move.0
     }
 
     pub fn player_move(
@@ -152,10 +226,13 @@ impl Checkers {
         from_y: usize,
         to_x: usize,
         to_y: usize,
-    ) -> Result<(), String> {
+    ) -> Result<NextMove, String> {
         if from_x > 7 || from_y > 7 || to_x > 7 || to_y > 7 {
             return Err("Out of bounds".to_string());
         }
+        let from_x = 7 - from_x;
+        let to_x = 7 - to_x;
+
         if !self.is_black(from_x, from_y) {
             return Err("Illegal move - no black piece".to_string());
         }
@@ -185,9 +262,10 @@ impl Checkers {
 
         if distx == 2 {
             self.board[(from_x + to_x) / 2][(from_y + to_y) / 2] = Piece::Empty;
+            Ok(NextMove::JumpAgain)
+        } else {
+            Ok(NextMove::ComputerGoes)
         }
-
-        Ok(())
     }
 
     fn score_move(&self, x: usize, y: usize, dir: Direction) -> isize {
@@ -245,11 +323,11 @@ impl Checkers {
     }
 
     fn is_red(&self, x: usize, y: usize) -> bool {
-        self.board[x][y] == Piece::Red && self.board[x][y] == Piece::RedKing
+        self.board[x][y] == Piece::Red || self.board[x][y] == Piece::RedKing
     }
 
     fn is_black(&self, x: usize, y: usize) -> bool {
-        self.board[x][y] == Piece::Black && self.board[x][y] == Piece::BlackKing
+        self.board[x][y] == Piece::Black || self.board[x][y] == Piece::BlackKing
     }
 
     fn is_empty(&self, x: usize, y: usize) -> bool {
@@ -278,7 +356,7 @@ impl Checkers {
     fn black_can_take(&self, x: usize, y: usize, to_x: usize, to_y: usize) -> isize {
         let mut count = 0;
 
-        if x > 0 && y > 0 && x < 7 && y < 7 {
+        if to_x > 0 && to_y > 0 && to_x < 7 && to_y < 7 {
             if self.is_black(to_x - 1, to_y - 1)
                 && (self.is_empty(to_x + 1, to_y + 1) || to_x + 1 == x && to_y + 1 == y)
             {

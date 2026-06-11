@@ -1,6 +1,7 @@
 [package]
-name = "checkers"
+name = "text-ui"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+checkers = { workspace = true }
