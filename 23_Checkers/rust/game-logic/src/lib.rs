@@ -47,17 +47,21 @@ pub enum NextMove {
     ComputerGoes,
 }
 
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Position {
     row: usize,
     col: usize,
 }
+impl Position {
+    fn new(row: usize, col: usize) -> Self {
+        Self { row, col }
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct ComputerMove {
-    from_row: usize,
-    from_col: usize,
-    to_row: usize,
-    to_col: usize,
+    from: Position,
+    to: Position,
 }
 
 impl Display for ComputerMove {
@@ -65,10 +69,10 @@ impl Display for ComputerMove {
         write!(
             f,
             "FROM {} {} TO {} {}",
-            self.from_col,
-            7 - self.from_row,
-            self.to_col,
-            7 - self.to_row
+            self.from.col,
+            7 - self.from.row,
+            self.to.col,
+            7 - self.to.row
         )
     }
 }
@@ -76,32 +80,28 @@ impl Display for ComputerMove {
 impl ComputerMove {
     fn default() -> Self {
         Self {
-            from_row: 0,
-            from_col: 0,
-            to_row: 0,
-            to_col: 0,
+            from: Position::default(),
+            to: Position::default(),
         }
     }
 
     fn new(from_row: usize, from_col: usize, to_row: usize, to_col: usize) -> Self {
         Self {
-            from_row,
-            from_col,
-            to_row,
-            to_col,
+            from: Position::new(from_row, from_col),
+            to: Position::new(to_row, to_col),
         }
     }
 
     fn is_jump(&self) -> bool {
-        self.from_row.abs_diff(self.to_row) == 2
+        self.from.row.abs_diff(self.to.row) == 2
     }
 
     fn between_row(&self) -> usize {
-        (self.from_row + self.to_row) / 2
+        (self.from.row + self.to.row) / 2
     }
 
     fn between_col(&self) -> usize {
-        (self.from_col + self.to_col) / 2
+        (self.from.col + self.to.col) / 2
     }
 }
 
@@ -291,30 +291,30 @@ impl Checkers {
             }
         }
 
-        result.push(best_move.0.clone());
+        result.push(best_move.0);
 
         // make the best move
-        self.board[best_move.0.to_row][best_move.0.to_col] = if best_move.0.to_row == 7 {
+        self.board[best_move.0.to.row][best_move.0.to.col] = if best_move.0.to.row == 7 {
             Piece::RedKing
         } else {
-            self.board[best_move.0.from_row][best_move.0.from_col]
+            self.board[best_move.0.from.row][best_move.0.from.col]
         };
-        self.board[best_move.0.from_row][best_move.0.from_col] = Piece::Empty;
+        self.board[best_move.0.from.row][best_move.0.from.col] = Piece::Empty;
         if best_move.0.is_jump() {
             self.board[best_move.0.between_row()][best_move.0.between_col()] = Piece::Empty;
 
             // Check for multiple jumps
             loop {
-                best_move = self.eval_at_position(best_move.0.to_row, best_move.0.to_col);
+                best_move = self.eval_at_position(best_move.0.to.row, best_move.0.to.col);
                 if best_move.0.is_jump() {
-                    result.push(best_move.0.clone());
-                    self.board[best_move.0.to_row][best_move.0.to_col] = if best_move.0.to_row == 7
+                    result.push(best_move.0);
+                    self.board[best_move.0.to.row][best_move.0.to.col] = if best_move.0.to.row == 7
                     {
                         Piece::RedKing
                     } else {
-                        self.board[best_move.0.from_row][best_move.0.from_col]
+                        self.board[best_move.0.from.row][best_move.0.from.col]
                     };
-                    self.board[best_move.0.from_row][best_move.0.from_col] = Piece::Empty;
+                    self.board[best_move.0.from.row][best_move.0.from.col] = Piece::Empty;
                     self.board[best_move.0.between_row()][best_move.0.between_col()] = Piece::Empty;
                 } else {
                     break;
