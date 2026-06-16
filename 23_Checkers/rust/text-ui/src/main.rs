@@ -19,7 +19,7 @@ fn main() {
     let mut checkers = Checkers::new();
     let state = loop {
         let computer_move = checkers.computer_move();
-        println!("{computer_move:?}");
+        println!("{computer_move}");
         print_board(&checkers);
         let state = checkers.board_state();
         if state != BoardState::GameContinues {

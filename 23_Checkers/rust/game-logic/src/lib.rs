@@ -58,26 +58,28 @@ impl Position {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
 pub struct ComputerMove {
+    from: Position,
+    to: Vec<Position>,
+}
+
+#[derive(Copy, Clone, Debug)]
+struct InternalMove {
     from: Position,
     to: Position,
 }
 
 impl Display for ComputerMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "FROM {} {} TO {} {}",
-            self.from.col,
-            7 - self.from.row,
-            self.to.col,
-            7 - self.to.row
-        )
+        write!(f, "FROM {} {}", self.from.col, 7 - self.from.row)?;
+        for to in &self.to {
+            write!(f, " TO {} {}", to.col, 7 - to.row)?;
+        }
+        Ok(())
     }
 }
 
-impl ComputerMove {
+impl InternalMove {
     fn default() -> Self {
         Self {
             from: Position::default(),
@@ -176,8 +178,8 @@ impl Checkers {
         }
     }
 
-    fn eval_at_position(&self, row: usize, col: usize) -> (ComputerMove, isize) {
-        let mut best_move: (ComputerMove, isize) = (ComputerMove::default(), 0);
+    fn eval_at_position(&self, row: usize, col: usize) -> (InternalMove, isize) {
+        let mut best_move: (InternalMove, isize) = (InternalMove::default(), 0);
 
         // Single move
         if self.is_red(row, col) && row < 7 {
@@ -189,7 +191,7 @@ impl Checkers {
             if left > best_move.1 {
                 let u = row + 1;
                 let v = col - 1;
-                best_move = (ComputerMove::new(row, col, u, v), left);
+                best_move = (InternalMove::new(row, col, u, v), left);
             }
             let right = if col < 7 {
                 self.score_move(row, col, Direction::Southeast)
@@ -199,7 +201,7 @@ impl Checkers {
             if right > best_move.1 {
                 let u = row + 1;
                 let v = col + 1;
-                best_move = (ComputerMove::new(row, col, u, v), right);
+                best_move = (InternalMove::new(row, col, u, v), right);
             }
         }
 
@@ -213,7 +215,7 @@ impl Checkers {
             if left > best_move.1 {
                 let u = row + 2;
                 let v = col - 2;
-                best_move = (ComputerMove::new(row, col, u, v), left);
+                best_move = (InternalMove::new(row, col, u, v), left);
             }
             let right = if col < 6 && self.is_black(row + 1, col + 1) {
                 self.score_move(row, col, Direction::JumpSoutheast)
@@ -223,7 +225,7 @@ impl Checkers {
             if right > best_move.1 {
                 let u = row + 2;
                 let v = col + 2;
-                best_move = (ComputerMove::new(row, col, u, v), right);
+                best_move = (InternalMove::new(row, col, u, v), right);
             }
         }
 
@@ -237,7 +239,7 @@ impl Checkers {
             if left > best_move.1 {
                 let u = row - 1;
                 let v = col - 1;
-                best_move = (ComputerMove::new(row, col, u, v), left);
+                best_move = (InternalMove::new(row, col, u, v), left);
             }
             let right = if col < 7 {
                 self.score_move(row, col, Direction::Northeast)
@@ -247,7 +249,7 @@ impl Checkers {
             if right > best_move.1 {
                 let u = row - 1;
                 let v = col + 1;
-                best_move = (ComputerMove::new(row, col, u, v), right);
+                best_move = (InternalMove::new(row, col, u, v), right);
             }
         }
 
@@ -261,7 +263,7 @@ impl Checkers {
             if left > best_move.1 {
                 let u = row - 2;
                 let v = col - 2;
-                best_move = (ComputerMove::new(row, col, u, v), left);
+                best_move = (InternalMove::new(row, col, u, v), left);
             }
             let right = if col < 6 && self.is_black(row - 1, col + 1) {
                 self.score_move(row, col, Direction::JumpNortheast)
@@ -271,16 +273,16 @@ impl Checkers {
             if right > best_move.1 {
                 let u = row - 2;
                 let v = col + 2;
-                best_move = (ComputerMove::new(row, col, u, v), right);
+                best_move = (InternalMove::new(row, col, u, v), right);
             }
         }
 
         best_move
     }
 
-    pub fn computer_move(&mut self) -> Vec<ComputerMove> {
-        let mut result = Vec::new();
-        let mut best_move: (ComputerMove, isize) = (ComputerMove::default(), 0);
+    pub fn computer_move(&mut self) -> ComputerMove {
+        let mut to = Vec::new();
+        let mut best_move: (InternalMove, isize) = (InternalMove::default(), 0);
 
         for row in 0..8 {
             for col in 0..8 {
@@ -291,7 +293,9 @@ impl Checkers {
             }
         }
 
-        result.push(best_move.0);
+        let from = best_move.0.from;
+
+        to.push(best_move.0.to);
 
         // make the best move
         self.board[best_move.0.to.row][best_move.0.to.col] = if best_move.0.to.row == 7 {
@@ -307,7 +311,7 @@ impl Checkers {
             loop {
                 best_move = self.eval_at_position(best_move.0.to.row, best_move.0.to.col);
                 if best_move.0.is_jump() {
-                    result.push(best_move.0);
+                    to.push(best_move.0.to);
                     self.board[best_move.0.to.row][best_move.0.to.col] = if best_move.0.to.row == 7
                     {
                         Piece::RedKing
@@ -322,7 +326,7 @@ impl Checkers {
             }
         }
 
-        result
+        ComputerMove { from, to }
     }
 
     pub fn player_move(
