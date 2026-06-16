@@ -47,11 +47,17 @@ pub enum NextMove {
     ComputerGoes,
 }
 
+pub struct Position {
+    row: usize,
+    col: usize,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct ComputerMove {
-    from_x: usize,
-    from_y: usize,
-    to_x: usize,
-    to_y: usize,
+    from_row: usize,
+    from_col: usize,
+    to_row: usize,
+    to_col: usize,
 }
 
 impl Display for ComputerMove {
@@ -59,10 +65,10 @@ impl Display for ComputerMove {
         write!(
             f,
             "FROM {} {} TO {} {}",
-            self.from_y,
-            7 - self.from_x,
-            self.to_y,
-            7 - self.to_x
+            self.from_col,
+            7 - self.from_row,
+            self.to_col,
+            7 - self.to_row
         )
     }
 }
@@ -70,28 +76,32 @@ impl Display for ComputerMove {
 impl ComputerMove {
     fn default() -> Self {
         Self {
-            from_x: 0,
-            from_y: 0,
-            to_x: 0,
-            to_y: 0,
+            from_row: 0,
+            from_col: 0,
+            to_row: 0,
+            to_col: 0,
         }
     }
 
-    fn new(from_x: usize, from_y: usize, to_x: usize, to_y: usize) -> Self {
+    fn new(from_row: usize, from_col: usize, to_row: usize, to_col: usize) -> Self {
         Self {
-            from_x,
-            from_y,
-            to_x,
-            to_y,
+            from_row,
+            from_col,
+            to_row,
+            to_col,
         }
     }
 
-    fn between_x(&self) -> usize {
-        (self.from_x + self.to_x) / 2
+    fn is_jump(&self) -> bool {
+        self.from_row.abs_diff(self.to_row) == 2
     }
 
-    fn between_y(&self) -> usize {
-        (self.from_y + self.to_y) / 2
+    fn between_row(&self) -> usize {
+        (self.from_row + self.to_row) / 2
+    }
+
+    fn between_col(&self) -> usize {
+        (self.from_col + self.to_col) / 2
     }
 }
 
@@ -101,6 +111,21 @@ enum Direction {
     Northwest,
     Southeast,
     Southwest,
+    JumpNortheast,
+    JumpNorthwest,
+    JumpSoutheast,
+    JumpSouthwest,
+}
+impl Direction {
+    fn is_jump(&self) -> bool {
+        matches!(
+            self,
+            Direction::JumpNortheast
+                | Direction::JumpNorthwest
+                | Direction::JumpSoutheast
+                | Direction::JumpSouthwest,
+        )
+    }
 }
 
 impl Default for Checkers {
@@ -151,97 +176,178 @@ impl Checkers {
         }
     }
 
-    pub fn computer_move(&mut self) -> ComputerMove {
+    fn eval_at_position(&self, row: usize, col: usize) -> (ComputerMove, isize) {
         let mut best_move: (ComputerMove, isize) = (ComputerMove::default(), 0);
 
-        for x in 0..8 {
-            for y in 0..8 {
-                match self.board[x][y] {
-                    Piece::RedKing | Piece::Red if x < 7 => {
-                        let left = if y > 0 {
-                            self.score_move(x, y, Direction::Southwest)
-                        } else {
-                            best_move.1
-                        };
-                        if left > best_move.1 {
-                            let u = x + 1;
-                            let v = y - 1;
-                            best_move = (ComputerMove::new(x, y, u, v), left);
-                        }
-                        let right = if y < 7 {
-                            self.score_move(x, y, Direction::Southeast)
-                        } else {
-                            best_move.1
-                        };
-                        if right > best_move.1 {
-                            let u = x + 1;
-                            let v = y + 1;
-                            best_move = (ComputerMove::new(x, y, u, v), right);
-                        }
-                    }
-                    Piece::RedKing if x > 0 => {
-                        let left = if y > 0 {
-                            self.score_move(x, y, Direction::Northwest)
-                        } else {
-                            best_move.1
-                        };
-                        if left > best_move.1 {
-                            let u = x - 1;
-                            let v = y - 1;
-                            best_move = (ComputerMove::new(x, y, u, v), left);
-                        }
-                        let right = if y < 7 {
-                            self.score_move(x, y, Direction::Northeast)
-                        } else {
-                            best_move.1
-                        };
-                        if right > best_move.1 {
-                            let u = x - 1;
-                            let v = y + 1;
-                            best_move = (ComputerMove::new(x, y, u, v), right);
-                        }
-                    }
-                    _ => continue,
+        // Single move
+        if self.is_red(row, col) && row < 7 {
+            let left = if col > 0 {
+                self.score_move(row, col, Direction::Southwest)
+            } else {
+                best_move.1
+            };
+            if left > best_move.1 {
+                let u = row + 1;
+                let v = col - 1;
+                best_move = (ComputerMove::new(row, col, u, v), left);
+            }
+            let right = if col < 7 {
+                self.score_move(row, col, Direction::Southeast)
+            } else {
+                best_move.1
+            };
+            if right > best_move.1 {
+                let u = row + 1;
+                let v = col + 1;
+                best_move = (ComputerMove::new(row, col, u, v), right);
+            }
+        }
+
+        // Jump move
+        if self.is_red(row, col) && row < 6 {
+            let left = if col > 1 && self.is_black(row + 1, col - 1) {
+                self.score_move(row, col, Direction::JumpSouthwest)
+            } else {
+                best_move.1
+            };
+            if left > best_move.1 {
+                let u = row + 2;
+                let v = col - 2;
+                best_move = (ComputerMove::new(row, col, u, v), left);
+            }
+            let right = if col < 6 && self.is_black(row + 1, col + 1) {
+                self.score_move(row, col, Direction::JumpSoutheast)
+            } else {
+                best_move.1
+            };
+            if right > best_move.1 {
+                let u = row + 2;
+                let v = col + 2;
+                best_move = (ComputerMove::new(row, col, u, v), right);
+            }
+        }
+
+        // Single backwards move
+        if self.board[row][col] == Piece::RedKing && row > 0 {
+            let left = if col > 0 {
+                self.score_move(row, col, Direction::Northwest)
+            } else {
+                best_move.1
+            };
+            if left > best_move.1 {
+                let u = row - 1;
+                let v = col - 1;
+                best_move = (ComputerMove::new(row, col, u, v), left);
+            }
+            let right = if col < 7 {
+                self.score_move(row, col, Direction::Northeast)
+            } else {
+                best_move.1
+            };
+            if right > best_move.1 {
+                let u = row - 1;
+                let v = col + 1;
+                best_move = (ComputerMove::new(row, col, u, v), right);
+            }
+        }
+
+        // Jump backwards move
+        if self.board[row][col] == Piece::RedKing && row > 1 {
+            let left = if col > 1 && self.is_black(row - 1, col - 1) {
+                self.score_move(row, col, Direction::JumpNorthwest)
+            } else {
+                best_move.1
+            };
+            if left > best_move.1 {
+                let u = row - 2;
+                let v = col - 2;
+                best_move = (ComputerMove::new(row, col, u, v), left);
+            }
+            let right = if col < 6 && self.is_black(row - 1, col + 1) {
+                self.score_move(row, col, Direction::JumpNortheast)
+            } else {
+                best_move.1
+            };
+            if right > best_move.1 {
+                let u = row - 2;
+                let v = col + 2;
+                best_move = (ComputerMove::new(row, col, u, v), right);
+            }
+        }
+
+        best_move
+    }
+
+    pub fn computer_move(&mut self) -> Vec<ComputerMove> {
+        let mut result = Vec::new();
+        let mut best_move: (ComputerMove, isize) = (ComputerMove::default(), 0);
+
+        for row in 0..8 {
+            for col in 0..8 {
+                let move_value = self.eval_at_position(row, col);
+                if move_value.1 > best_move.1 {
+                    best_move = move_value
                 }
             }
         }
 
+        result.push(best_move.0.clone());
+
         // make the best move
-        self.board[best_move.0.to_x][best_move.0.to_y] = if best_move.0.to_x == 7 {
+        self.board[best_move.0.to_row][best_move.0.to_col] = if best_move.0.to_row == 7 {
             Piece::RedKing
         } else {
-            self.board[best_move.0.from_x][best_move.0.from_y]
+            self.board[best_move.0.from_row][best_move.0.from_col]
         };
-        self.board[best_move.0.from_x][best_move.0.from_y] = Piece::Empty;
-        if best_move.0.from_x.abs_diff(best_move.0.to_x) == 2 {
-            self.board[best_move.0.between_x()][best_move.0.between_y()] = Piece::Empty;
+        self.board[best_move.0.from_row][best_move.0.from_col] = Piece::Empty;
+        if best_move.0.is_jump() {
+            self.board[best_move.0.between_row()][best_move.0.between_col()] = Piece::Empty;
+
+            // Check for multiple jumps
+            loop {
+                best_move = self.eval_at_position(best_move.0.to_row, best_move.0.to_col);
+                if best_move.0.is_jump() {
+                    result.push(best_move.0.clone());
+                    self.board[best_move.0.to_row][best_move.0.to_col] = if best_move.0.to_row == 7
+                    {
+                        Piece::RedKing
+                    } else {
+                        self.board[best_move.0.from_row][best_move.0.from_col]
+                    };
+                    self.board[best_move.0.from_row][best_move.0.from_col] = Piece::Empty;
+                    self.board[best_move.0.between_row()][best_move.0.between_col()] = Piece::Empty;
+                } else {
+                    break;
+                }
+            }
         }
 
-        best_move.0
+        result
     }
 
     pub fn player_move(
         &mut self,
-        from_x: usize,
-        from_y: usize,
-        to_x: usize,
-        to_y: usize,
+        from_row: usize,
+        from_col: usize,
+        to_row: usize,
+        to_col: usize,
     ) -> Result<NextMove, String> {
-        if from_x > 7 || from_y > 7 || to_x > 7 || to_y > 7 {
+        if from_row > 7 || from_col > 7 || to_row > 7 || to_col > 7 {
             return Err("Out of bounds".to_string());
         }
-        let from_x = 7 - from_x;
-        let to_x = 7 - to_x;
+        let from_x = 7 - from_row;
+        let to_x = 7 - to_row;
 
-        if !self.is_black(from_x, from_y) {
+        if !self.is_black(from_x, from_col) {
             return Err("Illegal move - no black piece".to_string());
         }
-        if !self.is_empty(to_x, to_y) {
+        if !self.is_empty(to_x, to_col) {
+            println!("{:?}", self.board);
             return Err("Illegal move - dest is not empty".to_string());
         }
 
         let distx = from_x.abs_diff(to_x);
-        let disty = from_y.abs_diff(to_y);
+        let disty = from_col.abs_diff(to_col);
         if distx != disty {
             return Err("Illegal move - not diagonal".to_string());
         }
@@ -249,134 +355,116 @@ impl Checkers {
             return Err("Illegal move - too far".to_string());
         }
 
-        if self.board[from_x][from_y] == Piece::Black && to_x > from_x {
+        if self.board[from_x][from_col] == Piece::Black && to_x > from_x {
             return Err("Illegal move - backwards".to_string());
         }
 
-        self.board[to_x][to_y] = if to_x == 0 {
+        self.board[to_x][to_col] = if to_x == 0 {
             Piece::BlackKing
         } else {
-            self.board[from_x][from_y]
+            self.board[from_x][from_col]
         };
-        self.board[from_x][from_y] = Piece::Empty;
+        self.board[from_x][from_col] = Piece::Empty;
 
         if distx == 2 {
-            self.board[(from_x + to_x) / 2][(from_y + to_y) / 2] = Piece::Empty;
+            self.board[(from_x + to_x) / 2][(from_col + to_col) / 2] = Piece::Empty;
             Ok(NextMove::JumpAgain)
         } else {
             Ok(NextMove::ComputerGoes)
         }
     }
 
-    fn score_move(&self, x: usize, y: usize, dir: Direction) -> isize {
+    fn score_move(&self, row: usize, col: usize, dir: Direction) -> isize {
         let mut q = 0; // score value
 
-        let (to_x, to_y) = match dir {
-            Direction::Northeast if x > 0 && y < 7 => (x - 1, y + 1),
-            Direction::Northwest if x > 0 && y > 0 => (x - 1, y - 1),
-            Direction::Southeast if x < 7 && y < 7 => (x + 1, y + 1),
-            Direction::Southwest if x < 7 && y > 0 => (x + 1, y - 1),
+        let (to_row, to_col) = match dir {
+            Direction::Northeast if row > 0 && col < 7 => (row - 1, col + 1),
+            Direction::Northwest if row > 0 && col > 0 => (row - 1, col - 1),
+            Direction::Southeast if row < 7 && col < 7 => (row + 1, col + 1),
+            Direction::Southwest if row < 7 && col > 0 => (row + 1, col - 1),
+            Direction::JumpNortheast if row > 1 && col < 6 => (row - 2, col + 2),
+            Direction::JumpNorthwest if row > 1 && col > 1 => (row - 2, col - 2),
+            Direction::JumpSoutheast if row < 6 && col < 6 => (row + 2, col + 2),
+            Direction::JumpSouthwest if row < 6 && col > 1 => (row + 2, col - 2),
             _ => return 0,
         };
 
-        if self.is_empty(to_x, to_y) {
-            if to_x == 7 {
+        if self.is_empty(to_row, to_col) {
+            if dir.is_jump() {
+                q += 5;
+            }
+
+            if to_row == 7 {
                 q += 2;
             }
-            if x == 0 {
+            if row == 0 {
                 q -= 2;
             }
-            if to_y == 0 || to_y == 7 {
+            if to_col == 0 || to_col == 7 {
                 q += 1;
             }
-            q += self.count_red_neighbors(to_x, to_y);
-            q -= self.black_can_take(x, y, to_x, to_y);
-        }
-
-        if self.is_black(to_x, to_y) {
-            let Some((to_x, to_y)) = (match dir {
-                Direction::Northeast if x > 1 && y < 6 => Some((x - 2, y + 2)),
-                Direction::Northwest if x > 1 && y > 1 => Some((x - 2, y - 2)),
-                Direction::Southeast if x < 6 && y < 6 => Some((x + 2, y + 2)),
-                Direction::Southwest if x < 6 && y > 1 => Some((x + 2, y - 2)),
-                _ => None,
-            }) else {
-                return 0;
-            };
-
-            if self.is_empty(to_x, to_y) {
-                if to_x == 7 {
-                    q += 2;
-                }
-                if x == 0 {
-                    q -= 2;
-                }
-                if to_y == 0 || to_y == 7 {
-                    q += 1;
-                }
-                q += self.count_red_neighbors(to_x, to_y);
-                q -= self.black_can_take(x, y, to_x, to_y);
-            }
+            q += self.count_red_neighbors(to_row, to_col);
+            q -= self.black_can_take(row, col, to_row, to_col);
         }
 
         q
     }
 
-    fn is_red(&self, x: usize, y: usize) -> bool {
-        self.board[x][y] == Piece::Red || self.board[x][y] == Piece::RedKing
+    fn is_red(&self, row: usize, col: usize) -> bool {
+        self.board[row][col] == Piece::Red || self.board[row][col] == Piece::RedKing
     }
 
-    fn is_black(&self, x: usize, y: usize) -> bool {
-        self.board[x][y] == Piece::Black || self.board[x][y] == Piece::BlackKing
+    fn is_black(&self, row: usize, col: usize) -> bool {
+        self.board[row][col] == Piece::Black || self.board[row][col] == Piece::BlackKing
     }
 
-    fn is_empty(&self, x: usize, y: usize) -> bool {
-        self.board[x][y] == Piece::Empty
+    fn is_empty(&self, row: usize, col: usize) -> bool {
+        self.board[row][col] == Piece::Empty
     }
 
-    fn count_red_neighbors(&self, x: usize, y: usize) -> isize {
+    fn count_red_neighbors(&self, row: usize, col: usize) -> isize {
         let mut count = 0;
 
-        if x > 0 && y > 0 {
-            count += self.is_red(x - 1, y - 1) as isize;
+        if row > 0 && col > 0 {
+            count += self.is_red(row - 1, col - 1) as isize;
         }
-        if x > 0 && y < 7 {
-            count += self.is_red(x - 1, y + 1) as isize;
+        if row > 0 && col < 7 {
+            count += self.is_red(row - 1, col + 1) as isize;
         }
-        if x < 7 && y > 0 {
-            count += self.is_red(x + 1, y - 1) as isize;
+        if row < 7 && col > 0 {
+            count += self.is_red(row + 1, col - 1) as isize;
         }
-        if x < 7 && y < 7 {
-            count += self.is_red(x + 1, y + 1) as isize;
+        if row < 7 && col < 7 {
+            count += self.is_red(row + 1, col + 1) as isize;
         }
 
         count
     }
 
-    fn black_can_take(&self, x: usize, y: usize, to_x: usize, to_y: usize) -> isize {
+    fn black_can_take(&self, row: usize, col: usize, to_row: usize, to_col: usize) -> isize {
         let mut count = 0;
 
-        if to_x > 0 && to_y > 0 && to_x < 7 && to_y < 7 {
-            if self.is_black(to_x - 1, to_y - 1)
-                && (self.is_empty(to_x + 1, to_y + 1) || to_x + 1 == x && to_y + 1 == y)
+        if to_row > 0 && to_col > 0 && to_row < 7 && to_col < 7 {
+            if self.is_black(to_row - 1, to_col - 1)
+                && (self.is_empty(to_row + 1, to_col + 1) || to_row + 1 == row && to_col + 1 == col)
             {
                 count += 1;
             }
 
-            if self.is_black(to_x + 1, to_y - 1)
-                && (self.is_empty(to_x - 1, to_y + 1) || to_x - 1 == x && to_y + 1 == y)
+            if self.is_black(to_row + 1, to_col - 1)
+                && (self.is_empty(to_row - 1, to_col + 1) || to_row - 1 == row && to_col + 1 == col)
             {
                 count += 1;
             }
 
-            if self.is_black(to_x - 1, to_y + 1)
-                && (self.is_empty(to_x + 1, to_y - 1) || to_x + 1 == x && to_y - 1 == y)
+            if self.is_black(to_row - 1, to_col + 1)
+                && (self.is_empty(to_row + 1, to_col - 1) || to_row + 1 == row && to_col - 1 == col)
             {
                 count += 1;
             }
 
-            if self.is_black(to_x + 1, to_y + 1)
-                && (self.is_empty(to_x - 1, to_y - 1) || to_x - 1 == x && to_y - 1 == y)
+            if self.is_black(to_row + 1, to_col + 1)
+                && (self.is_empty(to_row - 1, to_col - 1) || to_row - 1 == row && to_col - 1 == col)
             {
                 count += 1;
             }
