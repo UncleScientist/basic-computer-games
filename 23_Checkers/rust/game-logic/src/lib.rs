@@ -18,6 +18,12 @@ pub enum Piece {
     BlackKing,
 }
 
+impl Piece {
+    pub fn is_king(&self) -> bool {
+        matches!(self, Self::RedKing | Self::BlackKing)
+    }
+}
+
 impl Display for Piece {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -414,15 +420,15 @@ impl Checkers {
         q
     }
 
-    fn is_red(&self, row: usize, col: usize) -> bool {
+    pub fn is_red(&self, row: usize, col: usize) -> bool {
         self.board[row][col] == Piece::Red || self.board[row][col] == Piece::RedKing
     }
 
-    fn is_black(&self, row: usize, col: usize) -> bool {
+    pub fn is_black(&self, row: usize, col: usize) -> bool {
         self.board[row][col] == Piece::Black || self.board[row][col] == Piece::BlackKing
     }
 
-    fn is_empty(&self, row: usize, col: usize) -> bool {
+    pub fn is_empty(&self, row: usize, col: usize) -> bool {
         self.board[row][col] == Piece::Empty
     }
 
