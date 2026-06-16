@@ -19,7 +19,7 @@ fn main() {
     let mut checkers = Checkers::new();
     let state = loop {
         let computer_move = checkers.computer_move();
-        println!("{computer_move}");
+        println!("{computer_move:?}");
         print_board(&checkers);
         let state = checkers.board_state();
         if state != BoardState::GameContinues {
@@ -28,19 +28,19 @@ fn main() {
         'reenter: loop {
             let from = loop {
                 let from = prompt_for_string("From");
-                let Some((from_x, from_y)) = from.split_once(",") else {
+                let Some((from_col, from_row)) = from.split_once(",") else {
                     continue;
                 };
-                let Ok(from_x) = from_x.trim().parse::<usize>() else {
+                let Ok(from_col) = from_col.trim().parse::<usize>() else {
                     continue;
                 };
-                let Ok(from_y) = from_y.trim().parse::<usize>() else {
+                let Ok(from_row) = from_row.trim().parse::<usize>() else {
                     continue;
                 };
-                if from_x > 7 || from_y > 7 {
+                if from_col > 7 || from_row > 7 {
                     continue;
                 }
-                break (from_x, from_y);
+                break (from_col, from_row);
             };
 
             let mut plus = "";
@@ -48,26 +48,33 @@ fn main() {
             'next_jump: loop {
                 let to = loop {
                     let to = prompt_for_string(format!("{}To", plus));
-                    let Some((to_x, to_y)) = to.split_once(",") else {
+                    if !plus.is_empty() && to.starts_with("-") {
+                        break 'reenter;
+                    }
+
+                    let Some((to_col, to_row)) = to.split_once(",") else {
                         continue;
                     };
-                    let Ok(to_x) = to_x.trim().parse::<usize>() else {
+                    let Ok(to_col) = to_col.trim().parse::<usize>() else {
                         continue;
                     };
-                    let Ok(to_y) = to_y.trim().parse::<usize>() else {
+                    let Ok(to_row) = to_row.trim().parse::<usize>() else {
                         continue;
                     };
-                    if to_x > 7 || to_y > 7 {
+                    if to_col > 7 || to_row > 7 {
                         continue;
                     }
-                    break (to_x, to_y);
+                    break (to_col, to_row);
                 };
                 plus = "+";
 
-                match checkers.player_move(from.0, from.1, to.0, to.1) {
+                match checkers.player_move(from.1, from.0, to.1, to.0) {
                     Ok(NextMove::ComputerGoes) => break 'reenter,
                     Ok(NextMove::JumpAgain) => continue 'next_jump,
-                    Err(_) => continue 'reenter,
+                    Err(e) => {
+                        println!("{e:?}");
+                        continue 'reenter;
+                    }
                 }
             }
         }
@@ -89,6 +96,8 @@ fn main() {
 
 fn print_board(checkers: &Checkers) {
     let board = checkers.get_board();
+
+    #[allow(clippy::needless_range_loop)]
     for row in 0..8 {
         for col in 0..8 {
             let b = format!("{}", board[row][col]);
