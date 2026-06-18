@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = [ "high-iq" ]
+
+[workspace.dependencies]
+high_iq = { path = "high-iq" }
