@@ -37,7 +37,7 @@ impl Grid {
         self.padding = padding;
     }
 
-    pub fn draw(&self) {
+    pub fn draw(&self, hide: Option<(usize, usize)>) {
         let w = screen_width();
         let h = screen_height();
 
@@ -84,6 +84,18 @@ impl Grid {
             (grid_height / self.rows) / 2.0,
         );
 
+        for col in 0..8 {
+            let xpos = checker_x + col as f32 * grid_width / self.columns;
+            let ypos = checker_y - half_grid.1 - 5.0;
+            draw_text(format!("{col}"), xpos, ypos, 15.0, BLACK);
+        }
+
+        for row in 0..8 {
+            let xpos = checker_x - half_grid.0 - 12.0;
+            let ypos = checker_y + row as f32 * grid_height / self.rows + 5.0;
+            draw_text(format!("{}", 7 - row), xpos, ypos, 15.0, BLACK);
+        }
+
         for (r, row) in self.grid.iter().enumerate() {
             for (c, piece) in row.iter().enumerate() {
                 let xpos = checker_x + c as f32 * grid_width / self.columns;
@@ -100,6 +112,10 @@ impl Grid {
                     half_grid.1 * 2.0,
                     color,
                 );
+
+                if Some((r, c)) == hide {
+                    continue;
+                }
 
                 let colors = match piece {
                     Piece::Empty => None,
