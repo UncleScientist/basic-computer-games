@@ -45,6 +45,7 @@ impl HighIq {
                 }
             }
         }
+        grid[5][5] = 0;
 
         // 79 DATA 13,14,15,22,23,24,29,30,31,32,33,34,35,38,39,40,41
         // 81 DATA 42,43,44,47,48,49,50,51,52,53,58,59,60,67,68,69
@@ -63,13 +64,19 @@ impl HighIq {
     }
 
     pub fn make_move(&mut self, from: usize, to: usize) -> Result<(), MoveError> {
+        // Note: This check is not part of the original code; just something I added
+        // for my own sanity
+        if from == 0 || to == 0 || from >= self.board.len() || to >= self.board.len() {
+            return Err(MoveError::IllegalMove);
+        }
+
         // Lines 110-156
         if self.board[from] != Piece::Peg || self.board[to] != Piece::Hole || from == to {
             return Err(MoveError::IllegalMove);
         }
 
         // Lines 160-180
-        if !(from + 2).is_multiple_of(2) || from.abs_diff(to) != 2 || from.abs_diff(to) != 18 {
+        if !(from + to).is_multiple_of(2) || (from.abs_diff(to) != 2 && from.abs_diff(to) != 18) {
             return Err(MoveError::IllegalMove);
         }
 
@@ -79,7 +86,7 @@ impl HighIq {
                 if c == from {
                     if c + 2 == to {
                         // Jump right
-                        if self.grid[x][y + 1] != 0 {
+                        if self.grid[x][y + 1] == 0 {
                             return Err(MoveError::IllegalMove);
                         }
                         // Line 1050-1070
@@ -88,7 +95,7 @@ impl HighIq {
                         self.board[c + 1] = Piece::Hole;
                     } else if c + 18 == to {
                         // Jump down
-                        if self.grid[x + 1][y] != 0 {
+                        if self.grid[x + 1][y] == 0 {
                             return Err(MoveError::IllegalMove);
                         }
 
@@ -98,7 +105,7 @@ impl HighIq {
                         self.board[c + 9] = Piece::Hole;
                     } else if c - 2 == to {
                         // Jump Left
-                        if self.grid[x][y - 1] != 0 {
+                        if self.grid[x][y - 1] == 0 {
                             return Err(MoveError::IllegalMove);
                         }
 
@@ -108,7 +115,8 @@ impl HighIq {
                         self.board[c - 1] = Piece::Hole;
                     } else if c - 18 == to {
                         // Jump Up
-                        if self.grid[x - 1][y] != 0 {
+                        println!("up: {}", self.grid[x - 1][y]);
+                        if self.grid[x - 1][y] == 0 {
                             return Err(MoveError::IllegalMove);
                         }
 
@@ -172,6 +180,14 @@ impl HighIq {
 
         GameState::GameOver(peg_count)
     }
+
+    pub fn has_peg_at(&self, from: usize) -> bool {
+        if from == 0 || from >= self.board.len() {
+            false
+        } else {
+            self.board[from] == Piece::Peg
+        }
+    }
 }
 
 impl Display for HighIq {
@@ -196,5 +212,71 @@ impl Display for HighIq {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const MOVELIST: [[usize; 2]; 26] = [
+        [23, 41],
+        [50, 32],
+        [52, 50],
+        [49, 51],
+        [68, 50],
+        [51, 49],
+        [34, 52],
+        [53, 51],
+        [35, 53],
+        [39, 41],
+        [32, 50],
+        [50, 52],
+        [53, 51],
+        [58, 40],
+        [31, 49],
+        [48, 50],
+        [29, 31],
+        [22, 40],
+        [50, 52],
+        [69, 51],
+        [52, 50],
+        [47, 29],
+        [33, 51],
+        [50, 52],
+        [15, 33],
+        [13, 15],
+    ];
+
+    #[test]
+    fn test_jump_up() {
+        let mut game = HighIq::new();
+        assert!(game.make_move(59, 41).is_ok());
+    }
+
+    #[test]
+    fn test_jump_down() {
+        let mut game = HighIq::new();
+        assert!(game.make_move(23, 41).is_ok());
+    }
+    #[test]
+    fn test_jump_left() {
+        let mut game = HighIq::new();
+        assert!(game.make_move(43, 41).is_ok());
+    }
+    #[test]
+    fn test_jump_right() {
+        let mut game = HighIq::new();
+        assert!(game.make_move(39, 41).is_ok());
+    }
+
+    #[test]
+    fn test_simple_game() {
+        let mut game = HighIq::new();
+
+        for entry in &MOVELIST {
+            assert!(game.make_move(entry[0], entry[1]).is_ok());
+        }
+        assert_eq!(game.check_board(), GameState::GameOver(6));
     }
 }
