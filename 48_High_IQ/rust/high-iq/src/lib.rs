@@ -29,6 +29,13 @@ impl Default for HighIq {
 }
 
 impl HighIq {
+    // 79 DATA 13,14,15,22,23,24,29,30,31,32,33,34,35,38,39,40,41
+    // 81 DATA 42,43,44,47,48,49,50,51,52,53,58,59,60,67,68,69
+    const COORDS: [usize; 33] = [
+        13, 14, 15, 22, 23, 24, 29, 30, 31, 32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 47, 48, 49,
+        50, 51, 52, 53, 58, 59, 60, 67, 68, 69,
+    ];
+
     #[allow(clippy::needless_range_loop)]
     pub fn new() -> Self {
         let mut grid = [[0isize; 10]; 10];
@@ -47,20 +54,23 @@ impl HighIq {
         }
         grid[5][5] = 0;
 
-        // 79 DATA 13,14,15,22,23,24,29,30,31,32,33,34,35,38,39,40,41
-        // 81 DATA 42,43,44,47,48,49,50,51,52,53,58,59,60,67,68,69
-        let coords = [
-            13, 14, 15, 22, 23, 24, 29, 30, 31, 32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 47, 48,
-            49, 50, 51, 52, 53, 58, 59, 60, 67, 68, 69,
-        ];
-
         let mut board = [Piece::Void; 71];
-        for c in coords {
-            board[c] = Piece::Peg;
+        for c in &Self::COORDS {
+            board[*c] = Piece::Peg;
         }
         board[41] = Piece::Hole;
 
         Self { grid, board }
+    }
+
+    // Translates x 0..=7 and y 0..=7 into an index in the self.board[] array
+    pub fn get_board_position(&self, x: usize, y: usize) -> Option<usize> {
+        let pos = 11 + x + 9 * y;
+        if self.board[pos] == Piece::Void {
+            None
+        } else {
+            Some(pos)
+        }
     }
 
     pub fn make_move(&mut self, from: usize, to: usize) -> Result<(), MoveError> {
@@ -115,7 +125,6 @@ impl HighIq {
                         self.board[c - 1] = Piece::Hole;
                     } else if c - 18 == to {
                         // Jump Up
-                        println!("up: {}", self.grid[x - 1][y]);
                         if self.grid[x - 1][y] == 0 {
                             return Err(MoveError::IllegalMove);
                         }
@@ -187,6 +196,10 @@ impl HighIq {
         } else {
             self.board[from] == Piece::Peg
         }
+    }
+
+    pub fn get_board(&self) -> &[[isize; 10]; 10] {
+        &self.grid
     }
 }
 
@@ -278,5 +291,15 @@ mod test {
             assert!(game.make_move(entry[0], entry[1]).is_ok());
         }
         assert_eq!(game.check_board(), GameState::GameOver(6));
+    }
+
+    #[test]
+    fn test_coord_conversion() {
+        let game = HighIq::new();
+
+        assert_eq!(None, game.get_board_position(0, 0));
+        assert_eq!(Some(22), game.get_board_position(2, 1));
+        assert_eq!(Some(60), game.get_board_position(4, 5));
+        assert_eq!(None, game.get_board_position(5, 6));
     }
 }
