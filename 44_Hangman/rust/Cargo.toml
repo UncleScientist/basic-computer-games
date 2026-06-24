@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "hangman" , "text-ui"]
+members = ["gui", "hangman" , "text-ui"]
 default-members = [ "text-ui" ]
 
 [workspace.dependencies]
