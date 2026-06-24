@@ -25,6 +25,12 @@ pub enum GuessResult {
     FoundWord,
 }
 
+impl Default for Hangman {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hangman {
     pub fn new() -> Self {
         let mut rng = rand::rng();

@@ -23,11 +23,11 @@ fn main() {
 fn guess_a_word(hangman: &mut Hangman) {
     let mut image = [[' '; 12]; 12];
 
-    for row in 0..12 {
-        image[row][0] = 'X';
+    for row in &mut image {
+        row[0] = 'X';
     }
-    for col in 0..7 {
-        image[0][col] = 'X';
+    for item in &mut image[0][0..7] {
+        *item = 'X';
     }
     image[1][6] = 'X';
 
@@ -85,8 +85,8 @@ fn guess_a_word(hangman: &mut Hangman) {
                     }
                     2 => {
                         println!("Now we draw a body.");
-                        for row in 5..9 {
-                            image[row][6] = 'X';
+                        for row in image.iter_mut().take(9).skip(5) {
+                            row[6] = 'X';
                         }
                     }
                     3 => {
@@ -136,9 +136,9 @@ fn guess_a_word(hangman: &mut Hangman) {
                     }
                 }
 
-                for row in 0..12 {
-                    for col in 0..12 {
-                        print!("{}", image[row][col]);
+                for row in &image {
+                    for ch in row {
+                        print!("{ch}");
                     }
                     println!();
                 }
