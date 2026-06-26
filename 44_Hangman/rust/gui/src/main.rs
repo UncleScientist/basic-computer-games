@@ -1,16 +1,19 @@
 use hangman::{Guess, GuessResult, Hangman};
 use macroquad::prelude::*;
 
+const TITLE_ROW: f32 = 25.0;
+
 #[macroquad::main("Hangman")]
 async fn main() {
     let mut hangman = Hangman::new();
     while hangman.words_left() {
-        println!("{:?}", hangman.current_state());
         guess_a_word(&mut hangman).await;
     }
 }
 
 async fn guess_a_word(hangman: &mut Hangman) {
+    let mut title = String::from("Click a letter to guess");
+
     let game_won = loop {
         clear_background(BLACK);
         let w = screen_width();
@@ -20,17 +23,7 @@ async fn guess_a_word(hangman: &mut Hangman) {
             draw_letter_choices(w, &m, state);
             draw_hangman(w, state);
             draw_word_so_far(w, state);
-            draw_text(
-                format!(
-                    "Guesses: {}/{}",
-                    state.total_guesses - state.wrong_guesses,
-                    state.total_guesses
-                ),
-                30.0,
-                30.0,
-                30.0,
-                WHITE,
-            );
+            draw_text(&title, 30.0, TITLE_ROW, 30.0, WHITE);
         }
 
         if is_mouse_button_pressed(MouseButton::Left) {
@@ -38,11 +31,28 @@ async fn guess_a_word(hangman: &mut Hangman) {
             if let Some(letter) = mouse_loc(w, &m, loc) {
                 match hangman.guess_letter(letter) {
                     GuessResult::AlreadyGuessed => {}
-                    GuessResult::FoundLetter(_) => {}
-                    GuessResult::NotPresent => {
-                        if hangman.current_state().wrong_guesses >= 10 {
-                            break false;
+                    GuessResult::FoundLetter(_) => {
+                        let guess = guess_word(hangman).await;
+                        if hangman.guess_word(&guess) {
+                            break true;
+                        } else {
+                            title = "Sorry, that's not right. Click another letter.".to_string();
                         }
+                    }
+                    GuessResult::NotPresent => {
+                        let body_part = match hangman.current_state().wrong_guesses {
+                            1 => "First, we draw a head",
+                            2 => "Now we draw a body",
+                            3 => "Next we draw an arm",
+                            4 => "This time it's the other arm",
+                            5 => "Now, let's draw the right leg",
+                            6 => "This time we draw the left leg",
+                            7 => "Now we put up a hand",
+                            8 => "Next the other hand",
+                            9 => "Now we draw one foot",
+                            _ => break false,
+                        };
+                        title = format!("Bad guess: {body_part}");
                     }
                     GuessResult::FoundWord => {
                         break true;
@@ -65,7 +75,7 @@ async fn guess_a_word(hangman: &mut Hangman) {
         draw_hangman(w, state);
         draw_word_so_far(w, state);
         if game_won {
-            draw_text("Congrats, you guessed it!", 30.0, 30.0, 30.0, WHITE);
+            draw_text("Congrats, you guessed it!", 30.0, TITLE_ROW, 30.0, WHITE);
         } else {
             draw_text(
                 format!(
@@ -73,7 +83,7 @@ async fn guess_a_word(hangman: &mut Hangman) {
                     state.solution_word.iter().collect::<String>()
                 ),
                 30.0,
-                30.0,
+                TITLE_ROW,
                 30.0,
                 WHITE,
             );
@@ -211,5 +221,73 @@ fn draw_word_so_far(_w: f32, state: &Guess) {
             TEXT_SIZE * 3.0 / 4.0,
             WHITE,
         );
+    }
+}
+
+async fn guess_word(hangman: &mut Hangman) -> String {
+    let mut input = String::from("");
+    let mut blink = 0;
+    loop {
+        clear_background(BLACK);
+        blink = (blink + 1) % 60;
+
+        let w = screen_width();
+        let m = measure_text("#", None, TEXT_SIZE as u16, 1.0);
+        {
+            let state = hangman.current_state();
+            draw_letter_choices(w, &m, state);
+            draw_hangman(w, state);
+            draw_word_so_far(w, state);
+        }
+
+        draw_text(
+            format!(
+                "Guess the word: {input}{}",
+                if blink < 30 { "_" } else { " " }
+            ),
+            30.0,
+            TITLE_ROW,
+            30.0,
+            WHITE,
+        );
+
+        if let Some(key) = get_last_key_pressed() {
+            blink = 0;
+            match key {
+                KeyCode::Backspace => {
+                    input.pop();
+                }
+                KeyCode::Enter => return input,
+                KeyCode::A => input.push('A'),
+                KeyCode::B => input.push('B'),
+                KeyCode::C => input.push('C'),
+                KeyCode::D => input.push('D'),
+                KeyCode::E => input.push('E'),
+                KeyCode::F => input.push('F'),
+                KeyCode::G => input.push('G'),
+                KeyCode::H => input.push('H'),
+                KeyCode::I => input.push('I'),
+                KeyCode::J => input.push('J'),
+                KeyCode::K => input.push('K'),
+                KeyCode::L => input.push('L'),
+                KeyCode::M => input.push('M'),
+                KeyCode::N => input.push('N'),
+                KeyCode::O => input.push('O'),
+                KeyCode::P => input.push('P'),
+                KeyCode::Q => input.push('Q'),
+                KeyCode::R => input.push('R'),
+                KeyCode::S => input.push('S'),
+                KeyCode::T => input.push('T'),
+                KeyCode::U => input.push('U'),
+                KeyCode::V => input.push('V'),
+                KeyCode::W => input.push('W'),
+                KeyCode::X => input.push('X'),
+                KeyCode::Y => input.push('Y'),
+                KeyCode::Z => input.push('Z'),
+                _ => {}
+            }
+        }
+
+        next_frame().await;
     }
 }
