@@ -58,6 +58,8 @@ fn guess_a_word(hangman: &mut Hangman) {
                 continue;
             }
             GuessResult::FoundLetter(guess_count) => {
+                let word = state.word_so_far.iter().collect::<String>();
+                println!("\n{word}\n");
                 let word_guess = prompt_for_string("What is your guess for the word");
                 if hangman.guess_word(&word_guess) {
                     println!("Right!! It took you {guess_count} guesses");
