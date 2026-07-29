@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = ["slalom"]
+
+[workspace.dependencies]
+hangman = { path = "slalom" }
