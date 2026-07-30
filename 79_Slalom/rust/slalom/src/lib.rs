@@ -21,13 +21,25 @@ pub enum SkillLevel {
     Expert,
 }
 
+impl TryFrom<usize> for SkillLevel {
+    type Error = &'static str;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::Beginner),
+            2 => Ok(Self::Intermediate),
+            3 => Ok(Self::Expert),
+            _ => Err("Invalid number for skill level"),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum Success {
     NothingSpecial,
     CloseOne,
     YouMadeIt,
     MadeItOverMax,
-    FinishedRace,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -58,6 +70,23 @@ pub enum SpeedAdjustment {
     DecreaseTeensy,
     DecreaseSome,
     DecreaseMax,
+}
+
+impl TryFrom<usize> for SpeedAdjustment {
+    type Error = &'static str;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::IncreaseMax),
+            2 => Ok(Self::IncreaseSome),
+            3 => Ok(Self::IncreaseTeensy),
+            4 => Ok(Self::NoChange),
+            5 => Ok(Self::DecreaseTeensy),
+            6 => Ok(Self::DecreaseSome),
+            7 => Ok(Self::DecreaseMax),
+            _ => Err("Invalid value for speed adjustment"),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -104,23 +133,32 @@ impl Slalom {
         self.time = 0.0;
     }
 
-    pub fn time(&self) -> f64 {
-        self.time
+    pub fn time(&mut self) -> f64 {
+        self.time + self.rng.random::<f64>()
     }
 
     pub fn speed(&self) -> i32 {
         self.speed
     }
 
-    pub fn gate_speeds(&self, count: usize) -> &[i32] {
+    pub fn gate(&self) -> usize {
+        self.current_gate + 1
+    }
+
+    pub fn gate_speeds(count: usize) -> &'static [i32] {
         &Self::GATESPEED[0..count]
+    }
+
+    pub fn race_over(&self) -> bool {
+        !self.skiing || self.current_gate >= self.gates
     }
 
     pub fn adjust_speed(
         &mut self,
         adjustment: &SpeedAdjustment,
     ) -> Result<CommandOutcome, ErrorOutcome> {
-        if !self.skiing || self.current_gate > self.gates {
+        println!("{self:?}");
+        if !self.skiing || self.current_gate >= self.gates {
             return Err(ErrorOutcome::RaceIsOver);
         }
 
@@ -131,9 +169,9 @@ impl Slalom {
             SpeedAdjustment::IncreaseSome => self.rng.random_range(0..2) + 3,
             SpeedAdjustment::IncreaseTeensy => self.rng.random_range(0..3) + 1,
             SpeedAdjustment::NoChange => 0,
-            SpeedAdjustment::DecreaseTeensy => -self.rng.random_range(0..3) + 1,
-            SpeedAdjustment::DecreaseSome => -self.rng.random_range(0..2) + 3,
-            SpeedAdjustment::DecreaseMax => -self.rng.random_range(0..5) + 5,
+            SpeedAdjustment::DecreaseTeensy => -(self.rng.random_range(0..3) + 1),
+            SpeedAdjustment::DecreaseSome => -(self.rng.random_range(0..2) + 3),
+            SpeedAdjustment::DecreaseMax => -(self.rng.random_range(0..5) + 5),
         };
 
         if self.speed + adj < 7 {
@@ -167,7 +205,7 @@ impl Slalom {
     }
 
     pub fn try_cheating(&mut self) -> Result<CommandOutcome, ErrorOutcome> {
-        if !self.skiing || self.current_gate > self.gates {
+        if !self.skiing || self.current_gate >= self.gates {
             return Err(ErrorOutcome::RaceIsOver);
         }
 
@@ -181,6 +219,10 @@ impl Slalom {
     }
 
     pub fn get_result(&mut self) -> Medal {
+        if self.current_gate < self.gates {
+            return Medal::None;
+        }
+
         let medal = self.time / (self.speed as f64);
         let level: f64 = self.level.into();
 
@@ -196,6 +238,10 @@ impl Slalom {
         } else {
             Medal::None
         }
+    }
+
+    pub fn medal_counts(&self) -> (usize, usize, usize) {
+        (self.gold_count, self.silver_count, self.bronze_count)
     }
 }
 

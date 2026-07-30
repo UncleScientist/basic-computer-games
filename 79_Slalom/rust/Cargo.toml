@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["slalom"]
+members = ["slalom", "text-ui"]
+default-members = ["text-ui"]
 
 [workspace.dependencies]
-hangman = { path = "slalom" }
+slalom = { path = "slalom" }
