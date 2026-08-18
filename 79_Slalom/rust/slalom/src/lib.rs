@@ -157,7 +157,6 @@ impl Slalom {
         &mut self,
         adjustment: &SpeedAdjustment,
     ) -> Result<CommandOutcome, ErrorOutcome> {
-        println!("{self:?}");
         if !self.skiing || self.current_gate >= self.gates {
             return Err(ErrorOutcome::RaceIsOver);
         }
