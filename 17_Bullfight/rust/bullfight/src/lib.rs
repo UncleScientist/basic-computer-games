@@ -3,10 +3,19 @@ use rand::{distr::StandardUniform, prelude::*};
 #[derive(Debug)]
 pub struct Bullfight {
     bull_ability: Ability,
-    d: [f32; 5],
+    d: [f32; 3],
     rng: ThreadRng,
-    toreadores: Ability,
-    picadores: Ability,
+    pub toreadores: PrepResult,
+    pub picadores: PrepResult,
+    technique: f32,    // Note: This is the "L" variable in the basic code
+    bull_killed: bool, // Note: this is D(5) in basic
+    bravery: Bravery,
+}
+
+impl Default for Bullfight {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Bullfight {
@@ -21,10 +30,13 @@ impl Bullfight {
 
         Self {
             bull_ability,
-            d: [d_1, d_2, 0.0, 1.0, 1.0],
+            d: [d_1, d_2, 0.0],
             rng,
-            picadores: picador_data.ability,
-            toreadores: toreador_data.ability,
+            picadores: picador_data,
+            toreadores: toreador_data,
+            technique: 1.0, // Line 202
+            bull_killed: false,
+            bravery: Bravery::Normal,
         }
     }
 
@@ -52,39 +64,168 @@ impl Bullfight {
 
         // Lines 1770-1910
         match ability {
-            Ability::Superb | Ability::Good | Ability::Fair => {
-                return PrepResult {
-                    ability,
-                    prep_level,
-                    horses_killed: 0,
-                    people_killed: 0,
-                };
-            }
-            Ability::Poor => {
-                return PrepResult {
-                    ability,
-                    prep_level,
-                    horses_killed: 0,
-                    people_killed: rng.random_range(0..=1),
-                };
-            }
+            Ability::Superb | Ability::Good | Ability::Fair => PrepResult {
+                ability,
+                prep_level,
+                horses_killed: 0,
+                people_killed: 0,
+            },
+            Ability::Poor => PrepResult {
+                ability,
+                prep_level,
+                horses_killed: 0,
+                people_killed: rng.random_range(0..=1),
+            },
             Ability::Awful => {
                 let (horses_killed, people_killed) = match human {
                     Human::Picador => (rng.random_range(1..=2), rng.random_range(1..=2)),
                     Human::Toreador => (0, rng.random_range(1..=2)),
                 };
-                return PrepResult {
+                PrepResult {
                     ability,
                     prep_level,
                     horses_killed,
                     people_killed,
-                };
+                }
             }
         }
     }
 
-    pub fn cape_move(&mut self, action: CapeMove) {}
-    pub fn kill_move(&mut self, action: KillMove) {}
+    pub fn next_pass(&mut self) {
+        self.d[2] += 1.0; // Line 690
+    }
+
+    pub fn cape_move(&mut self, action: CapeMove) -> Outcome {
+        let m: f32 = match action {
+            CapeMove::Veronica => 3.0,
+            CapeMove::OutsideCape => 2.0,
+            CapeMove::CapeSwirl => 0.5,
+        };
+
+        self.technique += m; // Line 930
+
+        let bull_ability: f32 = self.bull_ability.into();
+        let f = (6.0 - bull_ability + m / 10.0) * self.basic_rnd()
+            / ((self.d[0] + self.d[1] + self.d[2] / 10.0) * 5.0);
+
+        if f < 0.51 {
+            return Outcome::Continue;
+        }
+
+        self.check_for_death()
+    }
+
+    pub fn check_for_death(&mut self) -> Outcome {
+        match self.flip_coin() {
+            true => {
+                self.bravery = Bravery::Heightened; // Line 990
+                Outcome::Dead
+            }
+            false => Outcome::StillAlive,
+        }
+    }
+
+    pub fn after_bull_charge(&mut self, action: RunOrRemain) -> Outcome {
+        match action {
+            RunOrRemain::Run => {
+                self.bravery = Bravery::Coward; // Line 1050
+                Outcome::Done
+            }
+            RunOrRemain::Remain => match self.flip_coin() {
+                true => {
+                    self.bravery = Bravery::Fearless; // Line 1090
+                    Outcome::Continue
+                }
+                false => self.check_for_death(),
+            },
+        }
+    }
+
+    pub fn kill_move(&mut self, action: KillMove) -> Outcome {
+        let bull_ability: f32 = self.bull_ability.into();
+        let k = (6.0 - bull_ability) * 10.0 * self.basic_rnd()
+            / ((self.d[0] + self.d[1]) * 5.0 * self.d[2]);
+
+        match action {
+            KillMove::OverTheHorns => {
+                if k > 0.8 {
+                    return self.check_for_death();
+                }
+            }
+            KillMove::InTheChest => {
+                if k > 0.2 {
+                    return self.check_for_death();
+                }
+            }
+        }
+
+        self.bull_killed = true; // Line 1270
+        Outcome::BullDead
+    }
+
+    pub fn final_result(&mut self) -> (Crowd, Award) {
+        let crowd = if self.bravery == Bravery::Fearless {
+            Crowd::CheerWildly
+        } else if self.bull_killed {
+            Crowd::Cheer
+        } else {
+            Crowd::RemainSilent
+        };
+
+        let award = if self.award_chance() < 2.4 {
+            Award::NothingAtAll
+        } else if self.award_chance() < 4.9 {
+            Award::SingleEar
+        } else if self.award_chance() < 7.4 {
+            Award::BothEars
+        } else {
+            Award::MuyHombre
+        };
+
+        (crowd, award)
+    }
+
+    fn flip_coin(&mut self) -> bool {
+        self.rng.random::<bool>()
+    }
+
+    fn basic_rnd(&mut self) -> f32 {
+        let num = (self.rng.random::<u32>()) as f32;
+        num / (u32::MAX as f32)
+    }
+
+    fn award_chance(&mut self) -> f32 {
+        let bull_ability: f32 = self.bull_ability.into();
+        4.5 + self.technique / 6.0 - (self.d[0] + self.d[1]) * 2.5
+            + 4.0 * self.bravery.val()
+            + if self.bull_killed { 4.0 } else { 2.0 }
+            - (self.d[2] * self.d[2]) / 120.0
+            - bull_ability
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum Crowd {
+    CheerWildly,
+    Cheer,
+    RemainSilent,
+}
+
+#[derive(Copy, Clone)]
+pub enum Award {
+    MuyHombre,
+    BothEars,
+    SingleEar,
+    NothingAtAll,
+}
+
+#[derive(Copy, Clone)]
+pub enum Outcome {
+    Continue,
+    Dead,
+    StillAlive,
+    Done,
+    BullDead,
 }
 
 #[derive(Copy, Clone)]
@@ -100,16 +241,42 @@ pub enum KillMove {
     InTheChest,
 }
 
-struct PrepResult {
-    ability: Ability,
+#[derive(Copy, Clone)]
+pub enum RunOrRemain {
+    Run,
+    Remain,
+}
+
+#[derive(Debug)]
+pub struct PrepResult {
+    pub ability: Ability,
     prep_level: f32,
-    horses_killed: usize,
-    people_killed: usize,
+    pub horses_killed: usize,
+    pub people_killed: usize,
 }
 
 enum Human {
     Picador,
     Toreador,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum Bravery {
+    Normal,     // 1
+    Heightened, // 1.5
+    Coward,     // 0
+    Fearless,   // 2
+}
+
+impl Bravery {
+    fn val(&self) -> f32 {
+        match self {
+            Bravery::Normal => 1.0,
+            Bravery::Heightened => 1.5,
+            Bravery::Coward => 0.0,
+            Bravery::Fearless => 2.0,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -169,5 +336,14 @@ mod test {
         let bullfight = Bullfight::new();
         assert!(bullfight.d[0] <= 0.5);
         assert!(bullfight.d[1] <= 0.5);
+    }
+
+    #[test]
+    fn test_rnd() {
+        let mut bullfight = Bullfight::new();
+        for _ in 0..100 {
+            let num = bullfight.basic_rnd();
+            assert!(0.0 < num && num < 1.0);
+        }
     }
 }
