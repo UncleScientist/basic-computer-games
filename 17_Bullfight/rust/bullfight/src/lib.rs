@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rand::{distr::StandardUniform, prelude::*};
 
 #[derive(Debug)]
@@ -9,7 +11,7 @@ pub struct Bullfight {
     pub picadores: PrepResult,
     technique: f32,    // Note: This is the "L" variable in the basic code
     bull_killed: bool, // Note: this is D(5) in basic
-    bravery: Bravery,
+    bravery: Bravery,  // Note: this is D(4) in basic
 }
 
 impl Default for Bullfight {
@@ -38,6 +40,10 @@ impl Bullfight {
             bull_killed: false,
             bravery: Bravery::Normal,
         }
+    }
+
+    pub fn bull_ability(&self) -> Ability {
+        self.bull_ability
     }
 
     // (0..3), (0..1.5), (0..1), (0..0.75), (0..0.6)
@@ -91,8 +97,9 @@ impl Bullfight {
         }
     }
 
-    pub fn next_pass(&mut self) {
+    pub fn next_pass(&mut self) -> usize {
         self.d[2] += 1.0; // Line 690
+        self.d[2] as usize
     }
 
     pub fn cape_move(&mut self, action: CapeMove) -> Outcome {
@@ -119,7 +126,7 @@ impl Bullfight {
         match self.flip_coin() {
             true => {
                 self.bravery = Bravery::Heightened; // Line 990
-                Outcome::Dead
+                Outcome::PlayerDead
             }
             false => Outcome::StillAlive,
         }
@@ -202,6 +209,10 @@ impl Bullfight {
             - (self.d[2] * self.d[2]) / 120.0
             - bull_ability
     }
+
+    pub fn bull_killed(&self) -> bool {
+        self.bull_killed
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -219,10 +230,10 @@ pub enum Award {
     NothingAtAll,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Outcome {
     Continue,
-    Dead,
+    PlayerDead,
     StillAlive,
     Done,
     BullDead,
@@ -286,6 +297,22 @@ pub enum Ability {
     Fair,
     Poor,
     Awful,
+}
+
+impl Display for Ability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Ability::Superb => "Superb",
+                Ability::Good => "Good",
+                Ability::Fair => "Fair",
+                Ability::Poor => "Poor",
+                Ability::Awful => "Awful",
+            }
+        )
+    }
 }
 
 impl From<Ability> for f32 {
