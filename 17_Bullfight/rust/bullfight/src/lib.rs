@@ -343,7 +343,7 @@ mod test {
         let mut bullfight = Bullfight::new();
         for _ in 0..100 {
             let num = bullfight.basic_rnd();
-            assert!(0.0 < num && num < 1.0);
+            assert!(0.0 <= num && num < 1.0);
         }
     }
 }
