@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["bullfight"]
+members = ["bullfight", "text-ui"]
+default-members = ["text-ui"]
 
 [workspace.dependencies]
 bullfight = { path = "bullfight" }
