@@ -1,6 +1,8 @@
 use std::io::{BufRead, Write};
 
-use bullfight::{Bullfight, KillMove, Outcome, PrepResult, RunOrRemain};
+use bullfight::{
+    Award, Bullfight, CapeMove, Crowd, KillMove, KillResult, Outcome, PrepResult, RunOrRemain,
+};
 
 fn main() {
     println!("{:<34}BULL", "");
@@ -47,88 +49,141 @@ fn main() {
     let mut player_dead = false;
     loop {
         let pass = bullfight.next_pass();
-        println!("Pass number {pass}");
+        println!("\n\nPass number {pass}");
 
-        if pass < 3 {
+        let kill_desire = if pass < 3 {
             println!("The bull is charging at you! You are the matador--");
-            match prompt_for_yes_no("Do you want to kill the bull") {
-                YesOrNo::Yes => {
-                    let kill_prompt = prompt_for_kill_method();
-                    match kill_prompt {
-                        KillPrompt::KillMove(kill_move) => {
-                            let outcome = bullfight.kill_move(kill_move);
-                            match outcome {
-                                Outcome::PlayerDead => {
-                                    println!("The bull has gored you!");
-                                    player_dead = true;
-                                    break;
-                                }
-                                Outcome::StillAlive => {
-                                    println!("The bull has gored you!");
-                                    continue;
-                                }
-                                Outcome::BullDead => break,
-                                Outcome::Done | Outcome::Continue => unreachable!(),
-                            }
+            prompt_for_yes_no("Do you want to kill the bull")
+        } else {
+            prompt_for_yes_no("Here comes the bull. Try for a kill")
+        };
+
+        match kill_desire {
+            YesOrNo::Yes => {
+                let kill_prompt = prompt_for_kill_method();
+                match kill_prompt {
+                    KillPrompt::KillMove(kill_move) => match bullfight.try_to_kill(kill_move) {
+                        KillResult::PlayerDead => {
+                            println!("The bull has gored you!");
+                            player_dead = true;
+                            break;
                         }
-                        KillPrompt::Panic => {
-                            println!("You panicked. The bull gored you.");
-                            match bullfight.check_for_death() {
-                                Outcome::PlayerDead => {
-                                    player_dead = true;
-                                    break;
-                                }
-                                Outcome::StillAlive => {
-                                    println!("You are still alive.\n");
-                                    let run = prompt_for_yes_no("Do you run from the ring");
-                                    let decision = match run {
-                                        YesOrNo::No => {
-                                            println!("You are brave. Stupid, but brave.");
-                                            RunOrRemain::Remain
-                                        }
-                                        YesOrNo::Yes => {
-                                            println!("Coward");
-                                            RunOrRemain::Run
-                                        }
-                                    };
-                                    let outcome = bullfight.after_bull_charge(decision);
-                                    match outcome {
-                                        Outcome::Continue => continue,
-                                        Outcome::PlayerDead => {
-                                            player_dead = true;
-                                            break;
-                                        }
-                                        Outcome::StillAlive => continue,
-                                        Outcome::Done => break,
-                                        Outcome::BullDead => break,
-                                    }
-                                }
-                                _ => unreachable!(),
+                        KillResult::BullDead => break,
+                        KillResult::ContinueGame => {
+                            println!("The bull has gored you!");
+                            continue;
+                        }
+                    },
+                    KillPrompt::Panic => {
+                        println!("You panicked. The bull gored you.");
+                        match player_panic(&mut bullfight) {
+                            PanicResult::PlayerDeath => {
+                                player_dead = true;
+                                break;
                             }
+                            PanicResult::StandsAndFights => continue,
+                            PanicResult::RunsAway => {
+                                println!(
+                                    "THE CROWD BOOS FOR TEN MINUTES.  IF YOU EVER DARE TO SHOW"
+                                );
+                                println!(
+                                    "YOUR FACE IN A RING AGAIN, THEY SWEAR THEY WILL KILL YOU--"
+                                );
+                                println!("UNLESS THE BULL DOES FIRST.");
+                                break;
+                            }
+                            PanicResult::GameOver => break,
                         }
                     }
                 }
-                YesOrNo::No => todo!(),
+            }
+            YesOrNo::No => {
+                let cape_move = prompt_for_cape_twirl(if pass < 3 {
+                    "What move do you make with the cape"
+                } else {
+                    "Cape move"
+                });
+                let outcome = bullfight.cape_move(cape_move);
+                match outcome {
+                    Outcome::Continue => continue,
+                    Outcome::PlayerDead => {
+                        println!("The bull has gored you!");
+                        player_dead = true;
+                        break;
+                    }
+                    Outcome::StillAlive => {
+                        println!("The bull has gored you!");
+                        continue;
+                    }
+                    Outcome::Done | Outcome::BullDead => unreachable!(),
+                }
             }
         }
     }
 
     if player_dead {
-        println!("You are dead");
-    } else if bullfight.bull_killed() {
-        println!("bull killed .... tbd");
-        todo!();
-    } else {
-        println!("... outcome?");
+        println!("You are dead.");
+    }
+
+    let (crowd, award) = bullfight.final_result();
+    match crowd {
+        Crowd::CheerWildly => println!("The crowd cheers wildly!"),
+        Crowd::Cheer => println!("The crowd cheers!\n"),
+        Crowd::RemainSilent => {}
+    }
+
+    println!("The crowd awards you");
+    match award {
+        Award::MuyHombre => println!("Ole! You are 'muy hombre'!! Ole! Ole!"),
+        Award::BothEars => println!("Both ears of the bull!\nOle!"),
+        Award::SingleEar => println!("One ear of the bull."),
+        Award::NothingAtAll => println!("Nothing at all."),
+    }
+    println!("\nAdios\n\n");
+}
+
+fn player_panic(bullfight: &mut Bullfight) -> PanicResult {
+    match bullfight.check_for_death() {
+        Outcome::PlayerDead => PanicResult::PlayerDeath,
+        Outcome::StillAlive => {
+            println!("You are still alive.\n");
+            let run = prompt_for_yes_no("Do you run from the ring");
+            let decision = match run {
+                YesOrNo::No => {
+                    println!("You are brave. Stupid, but brave.");
+                    RunOrRemain::Remain
+                }
+                YesOrNo::Yes => {
+                    println!("Coward");
+                    RunOrRemain::Run
+                }
+            };
+            let outcome = bullfight.after_bull_charge(decision);
+            match outcome {
+                Outcome::Continue => PanicResult::StandsAndFights,
+                Outcome::PlayerDead => PanicResult::PlayerDeath,
+                Outcome::StillAlive => PanicResult::StandsAndFights,
+                Outcome::Done => PanicResult::RunsAway,
+                Outcome::BullDead => PanicResult::GameOver,
+            }
+        }
+        _ => unreachable!(),
     }
 }
 
+enum PanicResult {
+    PlayerDeath,
+    RunsAway,
+    StandsAndFights,
+    GameOver,
+}
+
 fn print_prep_result(who: &str, prep: &PrepResult) {
-    println!("The {who} did a {} job.", prep.ability);
+    println!("\nThe {who} did a {} job.", prep.ability);
     if prep.horses_killed > 0 {
-        println!("{} of the horses of the {who} killed.", prep.horses_killed);
+        println!(" {} of the horses of the {who} killed.", prep.horses_killed);
     }
-    println!("{} of the {who} killed.", prep.people_killed);
+    println!(" {} of the {who} killed.", prep.people_killed);
 }
 
 fn prompt_for_string<S: AsRef<str>>(prompt: S) -> String {
@@ -153,6 +208,18 @@ fn prompt_for_yes_no<S: AsRef<str>>(prompt: S) -> YesOrNo {
             return YesOrNo::No;
         }
         println!("Incorrect answer - - please type 'yes' or 'no'.");
+    }
+}
+
+fn prompt_for_cape_twirl(prompt: &str) -> CapeMove {
+    loop {
+        let cape = prompt_for_string(prompt);
+        match cape.as_str() {
+            "0" => break CapeMove::Veronica,
+            "1" => break CapeMove::Outside,
+            "2" => break CapeMove::Swirl,
+            _ => println!("Don't panic, you idiot! Put down a correct number"),
+        }
     }
 }
 
