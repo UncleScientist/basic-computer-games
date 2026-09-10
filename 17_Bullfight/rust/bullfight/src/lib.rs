@@ -105,8 +105,8 @@ impl Bullfight {
     pub fn cape_move(&mut self, action: CapeMove) -> Outcome {
         let m: f32 = match action {
             CapeMove::Veronica => 3.0,
-            CapeMove::OutsideCape => 2.0,
-            CapeMove::CapeSwirl => 0.5,
+            CapeMove::Outside => 2.0,
+            CapeMove::Swirl => 0.5,
         };
 
         self.technique += m; // Line 930
@@ -170,6 +170,16 @@ impl Bullfight {
         Outcome::BullDead
     }
 
+    pub fn try_to_kill(&mut self, kill_move: KillMove) -> KillResult {
+        let outcome = self.kill_move(kill_move);
+        match outcome {
+            Outcome::PlayerDead => KillResult::PlayerDead,
+            Outcome::StillAlive => KillResult::ContinueGame,
+            Outcome::BullDead => KillResult::BullDead,
+            Outcome::Done | Outcome::Continue => unreachable!(),
+        }
+    }
+
     pub fn final_result(&mut self) -> (Crowd, Award) {
         let crowd = if self.bravery == Bravery::Fearless {
             Crowd::CheerWildly
@@ -231,6 +241,13 @@ pub enum Award {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub enum KillResult {
+    PlayerDead,
+    BullDead,
+    ContinueGame,
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum Outcome {
     Continue,
     PlayerDead,
@@ -242,8 +259,8 @@ pub enum Outcome {
 #[derive(Copy, Clone)]
 pub enum CapeMove {
     Veronica,
-    OutsideCape,
-    CapeSwirl,
+    Outside,
+    Swirl,
 }
 
 #[derive(Copy, Clone)]
